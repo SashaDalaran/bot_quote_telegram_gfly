@@ -24,12 +24,14 @@ from commands.help_cmd import help_command
 
 from commands.simple_timer import (
     timer_command,
-    cancel_command,
     repeat_command,
     cancel_repeat_command,
     timers_command,
     clear_pins_command,
 )
+
+from commands.cancel import cancel_command
+
 
 # если хочешь AI
 from commands.murloc_ai import murloc_ai_command

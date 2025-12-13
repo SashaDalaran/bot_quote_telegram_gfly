@@ -84,3 +84,5 @@ fly.toml
 !core/**
 !services/
 !services/**
+!commands/
+!commands/**

@@ -1,17 +1,24 @@
-app = "bot-quote-telegram-gfly"
-primary_region = "ams"
+# fly.toml app configuration file generated for bot-quote-telegram-gfly on 2025-12-13T18:51:29+04:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'bot-quote-telegram-gfly'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [deploy]
-  strategy = "rolling"
-  max_unavailable = 0   # КЛЮЧЕВОЕ ОТЛИЧИЕ
+  strategy = 'immediate'
+  max_unavailable = 1.0
 
 [env]
-  PYTHONUNBUFFERED = "1"
+  PYTHONUNBUFFERED = '1'
+  TELEGRAM_BOT_TOKEN = '${TELEGRAM_BOT_TOKEN}'
 
 [[vm]]
-  cpu_kind = "shared"
+  memory = '512mb'
+  cpu_kind = 'shared'
   cpus = 1
-  memory = "1gb"
+  memory_mb = 512

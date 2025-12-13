@@ -6,7 +6,7 @@ import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 
-from utils.duration import parse_duration  # если нет — скажи, дам
+from core.duration import parse_duration  # если нет — скажи, дам
 
 
 async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

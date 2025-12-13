@@ -1,3 +1,7 @@
+# ==================================================
+# bot.py — Telegram Bot Entry Point
+# ==================================================
+
 import logging
 from datetime import time
 
@@ -8,40 +12,39 @@ from telegram.ext import (
     filters,
 )
 
+# ================== settings ==================
+
 from core.settings import (
     TELEGRAM_BOT_TOKEN,
     QUOTES_FILE,
     BANLU_QUOTES_FILE,
 )
 
+# ================== services ==================
+
 from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
-# ===== commands =====
+# ================== commands ==================
+
 from commands.start import start_command
-from commands.quotes import quote_command
 from commands.help_cmd import help_command
+from commands.quotes import quote_command
 
-from commands.simple_timer import (
-    timer_command,
-    repeat_command,
-    cancel_repeat_command,
-    timers_command,
-    clear_pins_command,
-)
+from commands.simple_timer import timer_command
+from commands.date_timer import timerdate_command
+from commands.cancel import cancel_command, cancelall_command
 
-from commands.cancel import cancel_command
-
-
-# если хочешь AI
+from commands.holidays_cmd import holidays_command
 from commands.murloc_ai import murloc_ai_command
 
-# ===== daily jobs =====
+# ================== daily jobs ==================
+
 from daily.banlu.banlu_daily import banlu_daily_job
 from daily.holidays.holidays_daily import holidays_daily_job
 
+# ================== logging ==================
 
-# ----------------- logging -----------------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
@@ -53,48 +56,39 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
-    # ---- load data once ----
     quotes = load_quotes(QUOTES_FILE)
     banlu_quotes = load_banlu_quotes(BANLU_QUOTES_FILE)
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # shared state
     app.bot_data["quotes"] = quotes
     app.bot_data["banlu_quotes"] = banlu_quotes
 
-    # ---- filters ----
-    priv_or_groups = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
+    private_and_groups = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
     channels = filters.ChatType.CHANNEL
 
-    # ---- commands ----
-    app.add_handler(CommandHandler("start", start_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("help", help_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("quote", quote_command, filters=priv_or_groups))
+    app.add_handler(CommandHandler("start", start_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("help", help_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("quote", quote_command, filters=private_and_groups))
 
-    app.add_handler(CommandHandler("timer", timer_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("cancel", cancel_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("repeat", repeat_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("cancelrepeat", cancel_repeat_command))
-    app.add_handler(CommandHandler("timers", timers_command))
-    app.add_handler(CommandHandler("clearpins", clear_pins_command))
+    app.add_handler(CommandHandler("timer", timer_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("cancelall", cancelall_command, filters=private_and_groups))
 
-    app.add_handler(CommandHandler("murloc", murloc_ai_command, filters=priv_or_groups))
+    app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
 
-    # ---- channel commands ----
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
 
-    # ---- daily jobs ----
-    job_queue = app.job_queue
-
-    job_queue.run_daily(
+    app.job_queue.run_daily(
         banlu_daily_job,
         time=time(hour=10, minute=0),
         name="daily_banlu",
     )
 
-    job_queue.run_daily(
+    app.job_queue.run_daily(
         holidays_daily_job,
         time=time(hour=10, minute=1),
         name="daily_holidays",

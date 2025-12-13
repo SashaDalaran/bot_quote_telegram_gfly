@@ -4,10 +4,10 @@
 
 from datetime import datetime, timedelta, timezone
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
+from telegram.ext import ContextTypes
 
 from core.timers import create_timer
-from core.helpers import format_remaining
+from core.formatter import format_remaining_time
 
 
 async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -36,15 +36,15 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if not (gmt.startswith("+") or gmt.startswith("-")):
-            raise ValueError("GMT must be +3 / -5")
+            raise ValueError("GMT must be like +3 or -5")
 
         tz_offset = int(gmt)
         tz = timezone(timedelta(hours=tz_offset))
 
-        target_dt = base_dt.replace(tzinfo=tz)
-        now = datetime.now(tz)
+        target_dt = base_dt.replace(tzinfo=tz).astimezone(timezone.utc)
+        now_utc = datetime.now(timezone.utc)
 
-        remaining = int((target_dt - now).total_seconds())
+        remaining = int((target_dt - now_utc).total_seconds())
         if remaining <= 0:
             raise ValueError("Date already passed")
 
@@ -55,7 +55,7 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text(
         f"⏳ **Timer created**\n"
         f"Date: `{date} {time_str} (GMT{gmt})`\n"
-        f"Remaining: **{format_remaining(remaining)}**",
+        f"Remaining: **{format_remaining_time(remaining)}**",
         parse_mode="Markdown",
     )
 
@@ -68,17 +68,10 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             await update.message.reply_text("⚠️ Cannot pin message.")
 
-    timer_id = create_timer(
+    await create_timer(
+        context=context,
         chat_id=update.effective_chat.id,
-        message_id=msg.message_id,
-        text=raw_text,
-        timestamp=int(target_dt.timestamp()),
-        tz_offset=tz_offset,
-        pinned=should_pin,
+        target_time=target_dt,
+        message=raw_text,
+        pin_message_id=msg.message_id,
     )
-
-    await update.message.reply_text(f"✅ Timer ID: `{timer_id}`", parse_mode="Markdown")
-
-
-def setup(application):
-    application.add_handler(CommandHandler("timerdate", timerdate_command))

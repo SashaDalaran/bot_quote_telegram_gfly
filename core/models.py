@@ -1,29 +1,42 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
-@dataclass
+@dataclass(slots=True)
 class TimerEntry:
     """
     One-time timer with countdown.
     All timestamps MUST be in UTC.
     """
     chat_id: int
-    target_time: datetime          # UTC datetime
-    pin_message_id: int
+    target_time: datetime                  # UTC datetime
+    pin_message_id: Optional[int] = None
     message: Optional[str] = None
     quote: Optional[str] = None
-    job_name: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    @property
+    def job_name(self) -> str:
+        # unique & stable job id
+        ts = int(self.target_time.timestamp())
+        return f"timer:{self.chat_id}:{ts}"
 
 
-@dataclass
+@dataclass(slots=True)
 class RepeatEntry:
     """
     Repeating timer entry.
     """
     chat_id: int
-    interval: int                  # seconds
+    interval: int                          # seconds
     message: Optional[str] = None
-    job_name: str = ""
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    @property
+    def job_name(self) -> str:
+        return f"repeat:{self.chat_id}:{self.interval}"

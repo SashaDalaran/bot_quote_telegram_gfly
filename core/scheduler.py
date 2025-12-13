@@ -4,8 +4,8 @@ from typing import Dict, List
 
 from telegram.ext import ContextTypes
 
-from timers.models import TimerEntry, RepeatEntry
-from timers.formatter import (
+from core.models import TimerEntry, RepeatEntry
+from core.formatter import (
     choose_update_interval,
     format_remaining_time,
     pretty_time_short,

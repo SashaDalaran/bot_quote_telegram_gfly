@@ -5,15 +5,15 @@ from typing import Dict, List, Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from timers.models import TimerEntry, RepeatEntry
-from timers.parser import parse_duration, parse_datetime_with_tz
-from timers.formatter import (
+from core.models import TimerEntry, RepeatEntry
+from core.parser import parse_duration, parse_datetime_with_tz
+from core.formatter import (
     choose_update_interval,
     format_remaining_time,
     pretty_time_short,
 )
-from timers.scheduler import countdown_tick, repeat_tick
-from services.quotes_service import get_random_quote
+from services.scheduler import countdown_tick, repeat_tick
+
 
 logger = logging.getLogger(__name__)
 

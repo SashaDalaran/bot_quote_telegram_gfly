@@ -3,7 +3,6 @@
 # ==================================================
 
 import logging
-from datetime import time
 
 from telegram.ext import (
     ApplicationBuilder,
@@ -40,8 +39,8 @@ from commands.murloc_ai import murloc_ai_command
 
 # ================== daily jobs ==================
 
-from daily.banlu.banlu_daily import banlu_daily_job
-from daily.holidays.holidays_daily import holidays_daily_job
+from daily.banlu.banlu_daily import setup_banlu_daily
+from daily.holidays.holidays_daily import setup_holidays_daily
 
 # ================== logging ==================
 
@@ -56,17 +55,21 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
+    # ---------- load data ----------
     quotes = load_quotes(QUOTES_FILE)
     banlu_quotes = load_banlu_quotes(BANLU_QUOTES_FILE)
 
+    # ---------- build app ----------
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     app.bot_data["quotes"] = quotes
     app.bot_data["banlu_quotes"] = banlu_quotes
 
+    # ---------- filters ----------
     private_and_groups = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
     channels = filters.ChatType.CHANNEL
 
+    # ---------- commands ----------
     app.add_handler(CommandHandler("start", start_command, filters=private_and_groups))
     app.add_handler(CommandHandler("help", help_command, filters=private_and_groups))
     app.add_handler(CommandHandler("quote", quote_command, filters=private_and_groups))
@@ -79,20 +82,13 @@ def main() -> None:
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
 
+    # ---------- channel support ----------
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
 
-    app.job_queue.run_daily(
-        banlu_daily_job,
-        time=time(hour=10, minute=0),
-        name="daily_banlu",
-    )
-
-    app.job_queue.run_daily(
-        holidays_daily_job,
-        time=time(hour=10, minute=1),
-        name="daily_holidays",
-    )
+    # ---------- daily jobs ----------
+    setup_banlu_daily(app)
+    setup_holidays_daily(app)
 
     logger.info("Telegram bot started")
     app.run_polling()

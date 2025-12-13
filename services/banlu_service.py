@@ -1,5 +1,5 @@
 import random
-from config.settings import BANLU_WOWHEAD_URL
+from core.settings import BANLU_WOWHEAD_URL
 
 def load_banlu_quotes(path: str) -> list[str]:
     try:

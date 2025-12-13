@@ -1,96 +1,78 @@
+# services/holidays_service.py
+
 import json
 import logging
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
+
+from core.dynamic_holidays import get_dynamic_holidays
 
 logger = logging.getLogger(__name__)
 
 Holiday = Dict[str, object]
+HOLIDAYS_PATH = Path("data/holidays")
 
 
-def load_holidays_from_file(path: str) -> List[Holiday]:
-    """
-    Загружает праздники из JSON-файла.
-    Ожидается список объектов.
-    """
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+def load_static_holidays(today: date) -> List[Holiday]:
+    holidays: List[Holiday] = []
 
-        if not isinstance(data, list):
-            raise ValueError("Holidays JSON must be a list")
+    if not HOLIDAYS_PATH.exists():
+        logger.warning("Holidays folder not found: %s", HOLIDAYS_PATH)
+        return holidays
 
-        logger.info("Loaded %d holidays from %s", len(data), path)
-        return data
+    for file in sorted(HOLIDAYS_PATH.glob("*.json")):
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except Exception:
+            logger.exception("Failed to read %s", file)
+            continue
 
-    except FileNotFoundError:
-        logger.warning("Holidays file not found: %s", path)
-        return []
-    except Exception as e:
-        logger.exception("Failed to load holidays from %s: %s", path, e)
-        return []
+        for entry in data:
+            mmdd = entry.get("date")
+            if not mmdd:
+                continue
+
+            parsed = datetime.strptime(
+                f"{today.year}-{mmdd}", "%Y-%m-%d"
+            ).date()
+
+            if parsed < today:
+                parsed = parsed.replace(year=today.year + 1)
+
+            holidays.append(
+                {
+                    "name": entry["name"],
+                    "date": mmdd,
+                    "parsed_date": parsed,
+                    "countries": entry.get("countries", []),
+                    "categories": entry.get("category") or entry.get("categories") or [],
+                    "source": file.name,
+                }
+            )
+
+    return holidays
 
 
-def is_holiday_today(holiday: Holiday, today: date) -> bool:
-    """
-    Проверяет, попадает ли праздник на указанную дату.
-    Формат даты в JSON: MM-DD
-    """
-    raw_date = holiday.get("date")
-    if not isinstance(raw_date, str):
-        return False
-
-    try:
-        month, day = map(int, raw_date.split("-"))
-        return today.month == month and today.day == day
-    except Exception:
-        return False
-
-
-def filter_holidays_for_today(
-    holidays: List[Holiday],
-    today: Optional[date] = None,
-    country: Optional[str] = None,
-) -> List[Holiday]:
-    """
-    Возвращает список праздников на сегодня.
-    Можно фильтровать по стране.
-    """
+def load_all_holidays(today: date | None = None) -> List[Holiday]:
     if today is None:
         today = date.today()
 
-    result: List[Holiday] = []
+    holidays = load_static_holidays(today)
 
-    for holiday in holidays:
-        if not is_holiday_today(holiday, today):
-            continue
+    for d in get_dynamic_holidays():
+        holidays.append(
+            {
+                "name": d["name"],
+                "date": d["date"],
+                "parsed_date": datetime.strptime(
+                    d["full_date"], "%Y-%m-%d"
+                ).date(),
+                "countries": d.get("countries", []),
+                "categories": d.get("categories", []),
+                "source": "dynamic",
+            }
+        )
 
-        if country:
-            countries = holiday.get("countries", [])
-            if isinstance(countries, list):
-                if country not in countries and "world" not in countries:
-                    continue
-
-        result.append(holiday)
-
-    return result
-
-
-def group_holidays_by_category(
-    holidays: List[Holiday],
-) -> Dict[str, List[Holiday]]:
-    """
-    Группирует праздники по категориям.
-    """
-    grouped: Dict[str, List[Holiday]] = {}
-
-    for holiday in holidays:
-        categories = holiday.get("category", [])
-        if not isinstance(categories, list):
-            continue
-
-        for cat in categories:
-            grouped.setdefault(cat, []).append(holiday)
-
-    return grouped
+    holidays.sort(key=lambda h: h["parsed_date"])
+    return holidays

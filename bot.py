@@ -20,7 +20,7 @@ from services.banlu_service import load_banlu_quotes
 
 # ===== commands =====
 from commands.start import start_command
-from commands.help import help_command
+from commands.help_cmd import help_command
 from commands.timer import (
     timer_command,
     cancel_command,

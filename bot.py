@@ -25,6 +25,7 @@ from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
 # ================== commands ==================
+from commands.chat_id import chat_id_command
 
 from commands.start import start_command
 from commands.help_cmd import help_command
@@ -70,6 +71,8 @@ def main() -> None:
     channels = filters.ChatType.CHANNEL
 
     # ---------- commands ----------
+    app.add_handler(CommandHandler("chat_id", chat_id_command, filters=private_and_groups | filters.ChatType.CHANNEL))
+
     app.add_handler(CommandHandler("start", start_command, filters=private_and_groups))
     app.add_handler(CommandHandler("help", help_command, filters=private_and_groups))
     app.add_handler(CommandHandler("quote", quote_command, filters=private_and_groups))

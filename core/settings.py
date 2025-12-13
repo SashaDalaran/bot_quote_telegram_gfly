@@ -9,14 +9,12 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
-CLEANUP_PASSWORD = os.getenv("CLEANUP_PASSWORD", "")
-
 # ============================
 # Data files
 # ============================
 
 QUOTES_FILE = os.getenv("QUOTES_FILE", "data/quotes.txt")
-BANLU_QUOTES_FILE = "data/quotes_banlu.txt"  # ← проверь имя файла
+BANLU_QUOTES_FILE = "data/quotes_banlu.txt"
 
 # ============================
 # External links

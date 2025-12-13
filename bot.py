@@ -12,17 +12,15 @@ from core.settings import (
     TELEGRAM_BOT_TOKEN,
     QUOTES_FILE,
     BANLU_QUOTES_FILE,
-    MSK_TZ,
 )
 
 from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
 # ===== commands =====
-# ===== commands =====
 from commands.start import start_command
 from commands.quotes import quote_command
-from commands.banlu import banlu_command
+from commands.help_cmd import help_command
 
 from commands.simple_timer import (
     timer_command,
@@ -33,7 +31,8 @@ from commands.simple_timer import (
     clear_pins_command,
 )
 
-from commands.help_cmd import help_command
+# если хочешь AI
+from commands.murloc_ai import murloc_ai_command
 
 # ===== daily jobs =====
 from daily.banlu.banlu_daily import banlu_daily_job
@@ -69,9 +68,7 @@ def main() -> None:
     # ---- commands ----
     app.add_handler(CommandHandler("start", start_command, filters=priv_or_groups))
     app.add_handler(CommandHandler("help", help_command, filters=priv_or_groups))
-
     app.add_handler(CommandHandler("quote", quote_command, filters=priv_or_groups))
-    app.add_handler(CommandHandler("banlu", banlu_command, filters=priv_or_groups))
 
     app.add_handler(CommandHandler("timer", timer_command, filters=priv_or_groups))
     app.add_handler(CommandHandler("cancel", cancel_command, filters=priv_or_groups))
@@ -80,10 +77,11 @@ def main() -> None:
     app.add_handler(CommandHandler("timers", timers_command))
     app.add_handler(CommandHandler("clearpins", clear_pins_command))
 
+    app.add_handler(CommandHandler("murloc", murloc_ai_command, filters=priv_or_groups))
+
     # ---- channel commands ----
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
-    app.add_handler(MessageHandler(channels & filters.Regex(r"^/banlu"), banlu_command))
 
     # ---- daily jobs ----
     job_queue = app.job_queue

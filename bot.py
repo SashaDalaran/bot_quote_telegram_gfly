@@ -19,7 +19,7 @@ from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
 # ===== commands =====
-from commands.start import start
+from commands.start import start_command
 from commands.help import help_command
 from commands.timer import (
     timer_command,
@@ -64,7 +64,7 @@ def main() -> None:
     channels = filters.ChatType.CHANNEL
 
     # ---- commands ----
-    app.add_handler(CommandHandler("start", start, filters=priv_or_groups))
+    app.add_handler(CommandHandler("start", start_command, filters=priv_or_groups))
     app.add_handler(CommandHandler("help", help_command, filters=priv_or_groups))
 
     app.add_handler(CommandHandler("quote", quote_command, filters=priv_or_groups))
@@ -78,7 +78,7 @@ def main() -> None:
     app.add_handler(CommandHandler("clearpins", clear_pins_command))
 
     # ---- channel commands ----
-    app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start))
+    app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/banlu"), banlu_command))
 

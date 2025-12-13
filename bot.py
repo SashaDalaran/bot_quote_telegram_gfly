@@ -19,9 +19,12 @@ from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
 # ===== commands =====
+# ===== commands =====
 from commands.start import start_command
-from commands.help_cmd import help_command
-from commands.timer import (
+from commands.quotes import quote_command
+from commands.banlu import banlu_command
+
+from commands.simple_timer import (
     timer_command,
     cancel_command,
     repeat_command,
@@ -29,8 +32,8 @@ from commands.timer import (
     timers_command,
     clear_pins_command,
 )
-from commands.quotes import quote_command
-from commands.banlu import banlu_command
+
+from commands.help_cmd import help_command
 
 # ===== daily jobs =====
 from daily.banlu.banlu_daily import banlu_daily_job

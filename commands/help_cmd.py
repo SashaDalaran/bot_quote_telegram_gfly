@@ -40,7 +40,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/holidays — праздники сегодня\n"
     )
 
-    if is_admin(update):
+    if is_admin(update, context):
         text += (
             "\n🛡 *Администратор*\n"
             "/cancel — отменить таймеры чата\n"

@@ -6,10 +6,10 @@
 import os
 from datetime import time, timezone, timedelta, datetime
 
-from telegram.ext import Application, ContextTypes
+from telegram.ext import Application
 
 from services.holidays_service import get_today_holidays
-from services.holidays_format import format_holidays_message
+from services.holidays_format import format_holidays_message  # ✅ FIXED
 
 # ===========================
 # Configuration
@@ -25,7 +25,7 @@ HOLIDAYS_CHANNEL_IDS = [
 # ===========================
 # Job callback
 # ===========================
-async def send_holidays_daily(context: ContextTypes.DEFAULT_TYPE):
+async def send_holidays_daily(context):
     """
     Send today's holidays to configured channels
     """

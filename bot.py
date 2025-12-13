@@ -15,8 +15,6 @@ from core.settings import (
     MSK_TZ,
 )
 
-
-
 from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
@@ -87,14 +85,12 @@ def main() -> None:
     # ---- daily jobs ----
     job_queue = app.job_queue
 
-    # 10:00 — Ban’Lu
     job_queue.run_daily(
         banlu_daily_job,
         time=time(hour=10, minute=0),
         name="daily_banlu",
     )
 
-    # 10:01 — Holidays
     job_queue.run_daily(
         holidays_daily_job,
         time=time(hour=10, minute=1),

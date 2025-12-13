@@ -9,11 +9,11 @@ async def help_command(
     context: ContextTypes.DEFAULT_TYPE,
 ):
     await update.message.reply_text(
-        "📜 *Доступные команды:*\n\n"
+        "📜 Доступные команды:\n\n"
         "/start — приветствие\n"
         "/help — список команд\n"
         "/quote — случайная цитата\n"
         "/timer — таймер\n"
-        "/holidays — праздники\n",
-        parse_mode="Markdown",
+        "/holidays — праздники\n"
+        "/murloc_ai — мурлокская мудрость 🐸",
     )

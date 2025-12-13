@@ -4,7 +4,7 @@
 # ==================================================
 
 import os
-from datetime import time, timezone, timedelta
+from datetime import time, timezone, timedelta, datetime
 
 from telegram.ext import Application
 
@@ -22,12 +22,15 @@ HOLIDAYS_CHANNEL_IDS = [
     if cid.strip().isdigit()
 ]
 
-
 # ===========================
 # Job callback
 # ===========================
 async def send_holidays_daily(context):
-    holidays = get_today_holidays(TZ)
+    """
+    Send today's holidays to configured channels
+    """
+    today = datetime.now(TZ).date()
+    holidays = get_today_holidays(today)
 
     if not holidays:
         return
@@ -40,7 +43,6 @@ async def send_holidays_daily(context):
             text=message,
             disable_web_page_preview=True,
         )
-
 
 # ===========================
 # Job registration

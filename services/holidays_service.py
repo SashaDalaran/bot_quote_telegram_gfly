@@ -1,4 +1,6 @@
+# ==================================================
 # services/holidays_service.py
+# ==================================================
 
 import json
 import logging
@@ -76,3 +78,16 @@ def load_all_holidays(today: date | None = None) -> List[Holiday]:
 
     holidays.sort(key=lambda h: h["parsed_date"])
     return holidays
+
+
+def get_today_holidays(today: date | None = None) -> List[Holiday]:
+    """
+    Return holidays that are today
+    """
+    if today is None:
+        today = date.today()
+
+    today_mmdd = today.strftime("%m-%d")
+    holidays = load_all_holidays(today)
+
+    return [h for h in holidays if h["date"] == today_mmdd]

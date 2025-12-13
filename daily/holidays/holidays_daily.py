@@ -8,7 +8,7 @@ from datetime import time, timezone, timedelta
 
 from telegram.ext import Application
 
-from commands.holidays_cmd import get_today_holidays
+from services.holidays_service import get_today_holidays
 from utils.holidays_format import format_holidays_message
 
 # ===========================

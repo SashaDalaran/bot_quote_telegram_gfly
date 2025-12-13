@@ -37,7 +37,7 @@ from commands.cancel import cancel_command, cancelall_command
 from commands.holidays_cmd import holidays_command
 from commands.murloc_ai import murloc_ai_command
 
-# ================== daily jobs ==================
+# ================== daily setup ==================
 
 from daily.banlu.banlu_daily import setup_banlu_daily
 from daily.holidays.holidays_daily import setup_holidays_daily
@@ -59,7 +59,7 @@ def main() -> None:
     quotes = load_quotes(QUOTES_FILE)
     banlu_quotes = load_banlu_quotes(BANLU_QUOTES_FILE)
 
-    # ---------- build app ----------
+    # ---------- app ----------
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     app.bot_data["quotes"] = quotes
@@ -82,7 +82,6 @@ def main() -> None:
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
 
-    # ---------- channel support ----------
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
     app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
 
@@ -90,7 +89,7 @@ def main() -> None:
     setup_banlu_daily(app)
     setup_holidays_daily(app)
 
-    logger.info("Telegram bot started")
+    logger.info("🚀 Telegram bot started")
     app.run_polling()
 
 

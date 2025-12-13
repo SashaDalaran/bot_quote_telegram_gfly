@@ -1,5 +1,4 @@
 import logging
-from datetime import time
 
 from telegram.ext import (
     ApplicationBuilder,
@@ -12,7 +11,6 @@ from config.settings import (
     TELEGRAM_BOT_TOKEN,
     QUOTES_FILE,
     BANLU_QUOTES_FILE,
-    MSK_TZ,
 )
 
 from services.quotes_service import load_quotes
@@ -30,7 +28,7 @@ from handlers.timer import (
 )
 from handlers.quotes import quote_command
 from handlers.banlu import banlu_command
-from handlers.daily import banlu_daily_job  # если у тебя daily вынесен
+
 
 # ----------------- logging -----------------
 
@@ -47,13 +45,13 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
-    # ---- load data once ----
+    # ---- load data once (как в Discord) ----
     quotes = load_quotes(QUOTES_FILE)
     banlu_quotes = load_banlu_quotes(BANLU_QUOTES_FILE)
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # shared data for services
+    # shared data for services (аналог bot state в Discord)
     app.bot_data["quotes"] = quotes
     app.bot_data["banlu_quotes"] = banlu_quotes
 
@@ -76,6 +74,7 @@ def main() -> None:
         CommandHandler("clearpins", clear_pins_command, filters=priv_or_groups)
     )
 
+    # ---- banlu (аналог Discord command) ----
     app.add_handler(CommandHandler("banlu", banlu_command, filters=priv_or_groups))
 
     # ---- commands in channels (regex) ----
@@ -95,13 +94,6 @@ def main() -> None:
     # ---- text triggers ----
     app.add_handler(
         MessageHandler(filters.Regex(r"^!цитата\b"), quote_command)
-    )
-
-    # ---- daily jobs ----
-    app.job_queue.run_daily(
-        banlu_daily_job,
-        time=time(hour=10, minute=0, tzinfo=MSK_TZ),
-        name="banlu_daily",
     )
 
     logger.info("Telegram bot started")

@@ -3,7 +3,6 @@
 # ==================================================
 
 from datetime import datetime, timedelta, timezone
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -25,7 +24,7 @@ def parse_duration(raw: str) -> int:
 
 async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Usage: /timer 10s message")
+        await update.message.reply_text("Usage: /timer 10s text")
         return
 
     try:

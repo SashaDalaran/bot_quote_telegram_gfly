@@ -4,62 +4,136 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
+from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
-from core.formatter import format_duration
-from core.models import TimerEntry
+from core.formatter import choose_update_interval
 
 logger = logging.getLogger(__name__)
 
 
-async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    entry: TimerEntry = job.data
+def _format_left(seconds: int) -> str:
+    if seconds < 0:
+        seconds = 0
 
-    now = datetime.now(timezone.utc)
-    seconds_left = int((entry.target_time - now).total_seconds())
+    days = seconds // 86400
+    seconds %= 86400
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    sec = seconds % 60
 
-    # ================= TIME IS UP =================
-    if seconds_left <= 0:
-        text = "⏰ <b>Time is up!</b>"
-        if entry.message:
-            text += f"\n{entry.message}"
+    parts = []
+    if days:
+        parts.append(f"{days}д")
+    if hours or days:
+        parts.append(f"{hours}ч")
+    if minutes or hours or days:
+        parts.append(f"{minutes}м")
+    parts.append(f"{sec}с")
+    return " ".join(parts)
 
-        await context.bot.send_message(
-            chat_id=entry.chat_id,
+
+async def _safe_edit(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    message_id: int,
+    text: str,
+) -> None:
+    try:
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
             text=text,
-            parse_mode="HTML",
         )
+    except BadRequest as e:
+        # Самые частые: "Message is not modified", "message to edit not found"
+        msg = str(e).lower()
+        if "message is not modified" in msg:
+            return
+        if "message to edit not found" in msg or "message can't be edited" in msg:
+            logger.warning("Cannot edit timer message (chat=%s msg=%s): %s", chat_id, message_id, e)
+            return
+        logger.exception("BadRequest while editing timer message: %s", e)
+    except TelegramError as e:
+        logger.exception("TelegramError while editing timer message: %s", e)
 
-        if entry.pin_message_id:
-            try:
-                await context.bot.unpin_chat_message(
-                    chat_id=entry.chat_id,
-                    message_id=entry.pin_message_id,
-                )
-            except Exception:
-                pass
 
-        job.schedule_removal()
+def _remove_jobs_by_name(context: ContextTypes.DEFAULT_TYPE, name: str) -> None:
+    """
+    На всякий случай чистим дубликаты тиков (из-за гонок/двух запусков подряд).
+    """
+    try:
+        jobs = context.job_queue.get_jobs_by_name(name)
+    except Exception:
+        jobs = []
+
+    for j in jobs:
+        try:
+            j.schedule_removal()
+        except Exception:
+            # если job уже исчез — просто игнор
+            pass
+
+
+async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Один тик. Мы используем run_once, поэтому:
+    - текущий job одноразовый и сам исчезает;
+    - НЕЛЬЗЯ делать schedule_removal() на текущем job (иначе JobLookupError).
+    """
+    job = context.job
+    if job is None:
         return
 
-    # ================= FORMAT =================
-    time_str = format_duration(seconds_left)
+    data: Dict[str, Any] = job.data or {}
 
-    text = f"⏳ <b>{time_str}</b>"
-    if entry.message:
-        text += f"\n{entry.message}"
+    chat_id: Optional[int] = data.get("chat_id")
+    message_id: Optional[int] = data.get("message_id")
+    target_time: Optional[datetime] = data.get("target_time")
+    label: str = data.get("label", "")
+    job_name: str = data.get("job_name", job.name or "")
 
-    # ================= UPDATE =================
-    if text != getattr(entry, "last_text", None):
-        try:
-            await context.bot.edit_message_text(
-                chat_id=entry.chat_id,
-                message_id=entry.message_id,
-                text=text,
-                parse_mode="HTML",
-            )
-            entry.last_text = text
-        except Exception as e:
-            logger.debug("Edit skipped: %s", e)
+    if not chat_id or not message_id or not target_time:
+        logger.warning("countdown_tick missing data: %s", data)
+        return
+
+    # нормализуем время
+    if target_time.tzinfo is None:
+        target_time = target_time.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    sec_left = int((target_time - now).total_seconds())
+
+    # FINISH
+    if sec_left <= 0:
+        finish_text = f"⏰ Time is up!\n{label}".strip()
+        await _safe_edit(context, chat_id, message_id, finish_text)
+        return
+
+    # UPDATE TEXT
+    left_txt = _format_left(sec_left)
+    text = f"⏳ {left_txt}\n{label}".strip()
+    await _safe_edit(context, chat_id, message_id, text)
+
+    # NEXT TICK (adaptive)
+    interval = float(choose_update_interval(sec_left))
+
+    # защита от дублей: перед планированием следующего тика чистим старые с тем же именем
+    if job_name:
+        _remove_jobs_by_name(context, job_name)
+
+    context.job_queue.run_once(
+        countdown_tick,
+        when=interval,
+        name=job_name,
+        data={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "target_time": target_time,
+            "label": label,
+            "job_name": job_name,
+        },
+    )

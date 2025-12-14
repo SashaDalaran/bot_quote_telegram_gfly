@@ -42,7 +42,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.warning("Unpin failed: %s", e)
 
-        job.schedule_removal()
+        # job already auto-removed by run_once, just exit
         return
 
     # ================= FORMAT =================
@@ -68,8 +68,8 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
     # ================= NEXT TICK =================
     delay = choose_update_interval(seconds_left)
 
-    job.schedule_removal()
-
+    # IMPORTANT:
+    # run_once auto-removes the job after execution
     context.job_queue.run_once(
         countdown_tick,
         delay,

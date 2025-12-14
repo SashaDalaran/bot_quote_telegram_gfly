@@ -1,3 +1,7 @@
+# ==================================================
+# commands/cancel.py
+# ==================================================
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -9,23 +13,26 @@ from core.timers import (
 from core.admin import is_admin
 
 
+CANCEL_KEY = "cancel_candidates"
+
+
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     args = context.args
 
-    timers = list_timers(context, chat_id)
-
-    # ---------- нет таймеров ----------
-    if not timers:
-        await update.message.reply_text("❌ Нет активных таймеров.")
-        return
-
     # ---------- /cancel ----------
     if not args:
-        lines = ["❌ **Выбери таймер для отмены:**\n"]
+        timers = list_timers(context, chat_id)
 
+        if not timers:
+            await update.message.reply_text("❌ Нет активных таймеров.")
+            return
+
+        # 🔑 сохраняем список
+        context.user_data[CANCEL_KEY] = timers
+
+        lines = ["❌ **Выбери таймер для отмены:**\n"]
         for i, timer in enumerate(timers, start=1):
-            # предполагаем, что у таймера есть display()
             lines.append(f"{i}️⃣ {timer.display()}")
 
         lines.append("\n➡️ Используй: `/cancel <номер>`")
@@ -43,6 +50,14 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Номер должен быть числом.")
         return
 
+    timers = context.user_data.get(CANCEL_KEY)
+
+    if not timers:
+        await update.message.reply_text(
+            "⚠️ Список таймеров устарел. Сначала вызови /cancel"
+        )
+        return
+
     if index < 0 or index >= len(timers):
         await update.message.reply_text("⚠️ Таймера с таким номером нет.")
         return
@@ -53,6 +68,9 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context=context,
         job_name=timer.job_name,
     )
+
+    # чистим состояние
+    context.user_data.pop(CANCEL_KEY, None)
 
     if not canceled:
         await update.message.reply_text("⚠️ Таймер уже завершён или не найден.")
@@ -66,7 +84,6 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancelall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ⚠️ оставляем как админскую «опасную» команду
     if not await is_admin(update, context):
         await update.message.reply_text("⛔ Only admins can cancel all timers.")
         return

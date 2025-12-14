@@ -25,10 +25,10 @@ def format_duration(seconds: int) -> str:
 
 
 def choose_update_interval(seconds_left: int) -> int:
-    if seconds_left > 86400:
-        return 3600      # 1 час
-    if seconds_left > 3600:
-        return 300       # 5 минут
-    if seconds_left > 300:
-        return 60        # 1 минута
-    return 5             # 5 секунд
+    if seconds_left <= 60:
+        return 1          # 🔥 короткие таймеры — каждую секунду
+    if seconds_left <= 5 * 60:
+        return 5          # до 5 минут
+    if seconds_left <= 60 * 60:
+        return 30         # до часа
+    return 60             # всё длинное

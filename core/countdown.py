@@ -5,17 +5,17 @@
 import logging
 from datetime import datetime, timezone
 
-from telegram import constants
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-from core.formatter import choose_update_interval
-from core.timers import cancel_timer
+from core.formatter import format_remaining, choose_update_interval
 
 logger = logging.getLogger(__name__)
 
 
-async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
-    data = context.job.data
+async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    data = job.data
 
     chat_id = data["chat_id"]
     message_id = data["message_id"]
@@ -24,58 +24,42 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
     job_name = data["job_name"]
 
     now = datetime.now(timezone.utc)
-    sec_left = int((target_time - now).total_seconds())
+    remaining = int((target_time - now).total_seconds())
 
-    # ⏰ ВРЕМЯ ВЫШЛО
-    if sec_left <= 0:
+    # ⛔ ВРЕМЯ ВЫШЛО
+    if remaining <= 0:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=f"⏰ Время вышло!\n{label}",
+                text=f"⏰ Время вышло!\n{label}".strip(),
             )
-        except Exception:
+        except BadRequest:
             pass
 
-        cancel_timer(context, job_name)
+        job.schedule_removal()
         return
 
-    # ⏳ формат времени
-    days, rem = divmod(sec_left, 86400)
-    hours, rem = divmod(rem, 3600)
-    minutes, seconds = divmod(rem, 60)
-
-    time_str = []
-    if days:
-        time_str.append(f"{days}д")
-    if hours:
-        time_str.append(f"{hours}ч")
-    if minutes:
-        time_str.append(f"{minutes}м")
-    time_str.append(f"{seconds}с")
-
-    text = f"⏳ {' '.join(time_str)}"
+    # ⏳ Обновляем текст
+    text = f"⏳ {format_remaining(remaining)}"
     if label:
         text += f"\n{label}"
 
-    # ✏️ обновляем сообщение
     try:
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=message_id,
             text=text,
-            parse_mode=constants.ParseMode.HTML,
         )
-    except Exception:
-        pass
+    except BadRequest:
+        logger.warning("Failed to edit message for %s", job_name)
 
-    # 🧠 УМНЫЙ ИНТЕРВАЛ
-    next_tick = choose_update_interval(sec_left)
+    # ⏱ Следующий тик — УМНЫЙ интервал
+    interval = choose_update_interval(remaining)
 
-    # ❗ ВАЖНО: НЕ создавать новый job — используем run_once
     context.job_queue.run_once(
         countdown_tick,
-        when=next_tick,
+        when=interval,
         name=job_name,
         data=data,
     )

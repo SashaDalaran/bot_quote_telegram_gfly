@@ -2,7 +2,7 @@
 # core/countdown.py
 # ==================================================
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 
@@ -14,10 +14,10 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
     bot = context.bot
 
     now = datetime.now(timezone.utc)
-    sec_left = int((entry.target_time - now).total_seconds())
+    remaining = int((entry.target_time - now).total_seconds())
 
-    # ===== FINISH =====
-    if sec_left <= 0:
+    # ===== TIMER FINISHED =====
+    if remaining <= 0:
         await bot.send_message(
             chat_id=entry.chat_id,
             text=f"⏰ <b>Time is up!</b>\n{entry.message or ''}",
@@ -33,23 +33,23 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
-        return  # ⛔️ ничего больше не планируем
+        return  # ⛔️ НЕ СОЗДАЁМ НОВЫЙ JOB
 
     # ===== COUNTDOWN MESSAGE =====
-    mins, secs = divmod(sec_left, 60)
+    mins, secs = divmod(remaining, 60)
     if mins:
-        time_str = f"{mins} мин. {secs} сек."
+        text = f"⏳ Осталось: <b>{mins} мин {secs} сек</b>"
     else:
-        time_str = f"{secs} сек."
+        text = f"⏳ Осталось: <b>{secs} сек</b>"
 
     await bot.send_message(
         chat_id=entry.chat_id,
-        text=f"⏳ Осталось: <b>{time_str}</b>",
+        text=text,
         parse_mode=ParseMode.HTML,
     )
 
     # ===== NEXT TICK =====
-    delay = choose_update_interval(sec_left)
+    delay = choose_update_interval(remaining)
 
     context.job_queue.run_once(
         countdown_tick,

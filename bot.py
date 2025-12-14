@@ -3,6 +3,7 @@
 # ==================================================
 
 import logging
+import traceback
 
 from telegram.ext import (
     ApplicationBuilder,
@@ -25,6 +26,7 @@ from services.quotes_service import load_quotes
 from services.banlu_service import load_banlu_quotes
 
 # ================== commands ==================
+
 from commands.chat_id import chat_id_command
 
 from commands.start import start_command
@@ -52,6 +54,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ================== error handler ==================
+
+async def error_handler(update, context):
+    traceback.print_exception(
+        type(context.error),
+        context.error,
+        context.error.__traceback__,
+    )
+
+    if update and update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ Произошла ошибка. Проверь формат команды."
+        )
+
+
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
@@ -71,21 +88,40 @@ def main() -> None:
     channels = filters.ChatType.CHANNEL
 
     # ---------- commands ----------
-    app.add_handler(CommandHandler("chat_id", chat_id_command, filters=private_and_groups | filters.ChatType.CHANNEL))
+    app.add_handler(
+        CommandHandler(
+            "chat_id",
+            chat_id_command,
+            filters=private_and_groups | filters.ChatType.CHANNEL,
+        )
+    )
 
     app.add_handler(CommandHandler("start", start_command, filters=private_and_groups))
     app.add_handler(CommandHandler("help", help_command, filters=private_and_groups))
     app.add_handler(CommandHandler("quote", quote_command, filters=private_and_groups))
 
     app.add_handler(CommandHandler("timer", timer_command, filters=private_and_groups))
-    app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
+    app.add_handler(
+        CommandHandler("timerdate", timerdate_command, filters=private_and_groups)
+    )
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
 
-    app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
-    app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
+    app.add_handler(
+        CommandHandler("holidays", holidays_command, filters=private_and_groups)
+    )
+    app.add_handler(
+        CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups)
+    )
 
-    app.add_handler(MessageHandler(channels & filters.Regex(r"^/start"), start_command))
-    app.add_handler(MessageHandler(channels & filters.Regex(r"^/help"), help_command))
+    app.add_handler(
+        MessageHandler(channels & filters.Regex(r"^/start"), start_command)
+    )
+    app.add_handler(
+        MessageHandler(channels & filters.Regex(r"^/help"), help_command)
+    )
+
+    # ---------- error handler ----------
+    app.add_error_handler(error_handler)
 
     # ---------- daily jobs ----------
     setup_banlu_daily(app)

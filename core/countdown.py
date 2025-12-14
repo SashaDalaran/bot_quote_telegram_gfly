@@ -8,7 +8,11 @@ from core.formatter import format_duration, choose_update_interval
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
-    data = context.job.data
+    # 🔴 КРИТИЧЕСКИЙ ФИКС: удаляем текущую job
+    job = context.job
+    job.schedule_removal()
+
+    data = job.data
     bot: Bot = context.bot
 
     chat_id = data["chat_id"]
@@ -34,7 +38,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception:
             pass
 
-        return  # ← ВАЖНО: тут просто выходим
+        return
 
     remaining = format_duration(seconds_left)
     text = f"⏳ {remaining}"

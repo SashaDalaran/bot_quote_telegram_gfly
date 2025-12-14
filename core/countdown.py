@@ -3,88 +3,70 @@
 # ==================================================
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
-from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry
 from core.formatter import choose_update_interval
+from core.models import TimerEntry
 
 logger = logging.getLogger(__name__)
 
 
-def _format_remaining(seconds: int) -> str:
-    """
-    Human readable remaining time.
-    """
-    if seconds <= 0:
-        return "⏰ Time is up!"
-
-    h, rem = divmod(seconds, 3600)
-    m, s = divmod(rem, 60)
-
-    if h > 0:
-        return f"⏳ {h:02d}:{m:02d}:{s:02d}"
-    return f"⏳ {m:02d}:{s:02d}"
-
-
-async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Single countdown job.
-    Self-reschedules itself until finished.
-    """
+async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
     entry: TimerEntry = context.job.data
-    job = context.job
 
     now = datetime.now(timezone.utc)
-    remaining = int((entry.target_time - now).total_seconds())
+    seconds_left = int((entry.target_time - now).total_seconds())
 
-    # ================= FINISH =================
-    if remaining <= 0:
-        try:
-            text = "⏰ Time is up!"
-            if entry.message:
-                text += f"\n\n{entry.message}"
+    # ================= TIME IS UP =================
+    if seconds_left <= 0:
+        text = "⏰ <b>Time is up!</b>"
+        if entry.message:
+            text += f"\n{entry.message}"
 
-            await context.bot.edit_message_text(
-                chat_id=entry.chat_id,
-                message_id=entry.pin_message_id,
-                text=text,
-            )
-        except BadRequest:
-            pass
+        await context.bot.send_message(
+            chat_id=entry.chat_id,
+            text=text,
+            parse_mode="HTML",
+        )
 
-        # -------- UNPIN --------
+        # ---------- auto unpin ----------
         if entry.pin_message_id:
             try:
                 await context.bot.unpin_chat_message(
                     chat_id=entry.chat_id,
                     message_id=entry.pin_message_id,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Unpin failed: %s", e)
 
-        logger.info("Timer finished: %s", job.name)
-        job.schedule_removal()
         return
 
-    # ================= UPDATE =================
+    # ================= UPDATE MESSAGE =================
+    minutes, seconds = divmod(seconds_left, 60)
+    time_str = f"{minutes}:{seconds:02d}" if minutes else f"{seconds}s"
+
+    text = f"⏳ <b>{time_str}</b>"
+    if entry.message:
+        text += f"\n{entry.message}"
+
     try:
         await context.bot.edit_message_text(
             chat_id=entry.chat_id,
-            message_id=entry.pin_message_id,
-            text=_format_remaining(remaining),
+            message_id=entry.message_id,
+            text=text,
+            parse_mode="HTML",
         )
-    except BadRequest:
-        # message not modified / deleted
+    except Exception:
         pass
 
-    # ================= RESCHEDULE =================
-    delay = choose_update_interval(remaining)
-    next_run = now + timedelta(seconds=delay)
+    # ================= NEXT TICK =================
+    delay = choose_update_interval(seconds_left)
 
-    try:
-        job.reschedule(trigger="date", run_date=next_run)
-    except Exception:
-        logger.exception("Failed to reschedule timer %s", job.name)
+    context.job_queue.run_once(
+        countdown_tick,
+        delay,
+        data=entry,
+        name=entry.job_name,
+    )

@@ -20,7 +20,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     now = datetime.now(timezone.utc)
     seconds_left = int((target_time - now).total_seconds())
 
-    # ⛔ Таймер закончился — просто выходим
+    # ⏰ Таймер закончился
     if seconds_left <= 0:
         text = "⏰ Время вышло!"
         if label:
@@ -35,9 +35,10 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception:
             pass
 
-        return  # ❗ НИКАКОГО schedule_removal
+        # ❗ НИЧЕГО больше не планируем
+        return
 
-    # ⏳ Обновляем текст
+    # ⏳ Обновление
     remaining = format_duration(seconds_left)
     text = f"⏳ {remaining}"
     if label:
@@ -52,7 +53,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         pass
 
-    # 🔁 Планируем СЛЕДУЮЩИЙ тик
+    # 🔁 Планируем СЛЕДУЮЩЕЕ обновление
     context.job_queue.run_once(
         countdown_tick,
         when=choose_update_interval(seconds_left),

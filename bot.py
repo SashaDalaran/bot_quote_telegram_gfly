@@ -35,7 +35,7 @@ from commands.quotes import quote_command
 
 from commands.simple_timer import timer_command
 from commands.date_timer import timerdate_command
-from commands.cancel import cancel_command
+from commands.cancel import cancel_command, cancel_all_command
 
 from commands.holidays_cmd import holidays_command
 from commands.murloc_ai import murloc_ai_command
@@ -68,6 +68,8 @@ async def error_handler(update, context):
             "⚠️ Произошла ошибка. Проверь формат команды."
         )
 
+
+# ================== main ==================
 
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
@@ -104,7 +106,12 @@ def main() -> None:
     app.add_handler(
         CommandHandler("timerdate", timerdate_command, filters=private_and_groups)
     )
+
+    # 🔥 cancel / cancelall
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
+    app.add_handler(
+        CommandHandler("cancelall", cancel_all_command, filters=private_and_groups)
+    )
 
     app.add_handler(
         CommandHandler("holidays", holidays_command, filters=private_and_groups)
@@ -113,6 +120,7 @@ def main() -> None:
         CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups)
     )
 
+    # ---------- channels ----------
     app.add_handler(
         MessageHandler(channels & filters.Regex(r"^/start"), start_command)
     )

@@ -5,6 +5,18 @@ from telegram.ext import ContextTypes
 
 from core.timers import list_timers, cancel_timer
 
+async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    timers = list_timers(context, chat_id)
+
+    if not timers:
+        await update.message.reply_text("❌ Нет активных таймеров")
+        return
+
+    for t in timers:
+        cancel_timer(context, t.job_name)
+
+    await update.message.reply_text("🧹 Все таймеры отменены")
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id

@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry
 from core.timers import create_timer
 
 
@@ -41,12 +40,10 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sent = await update.message.reply_text("⏳")
 
-    entry = TimerEntry(
+    create_timer(
+        context=context,
         chat_id=sent.chat_id,
-        message_id=sent.message_id,
         target_time=target_time,
         message=message,
-        job_name=f"timer:{sent.chat_id}:{sent.message_id}",
+        pin_message_id=sent.message_id,
     )
-
-    create_timer(context, entry)

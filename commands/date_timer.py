@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry
 from core.timers import create_timer
 
 
@@ -29,7 +28,12 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_parts = [a for a in context.args[3:] if a != "--pin"]
     text = " ".join(text_parts) or "⏰ Таймер"
 
-    tz_hours = int(tz_str.replace("+", ""))
+    try:
+        tz_hours = int(tz_str.replace("+", ""))
+    except ValueError:
+        await update.message.reply_text("Invalid timezone format. Example: +3")
+        return
+
     local_dt = datetime.strptime(
         f"{date_str} {time_str}", "%d.%m.%Y %H:%M"
     )
@@ -47,12 +51,10 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message_id=msg.message_id,
         )
 
-    entry = TimerEntry(
+    create_timer(
+        context=context,
         chat_id=update.effective_chat.id,
         target_time=target_time,
-        message_id=msg.message_id,
         message=text,
-        pin_message_id=msg.message_id if pin else None,
+        pin_message_id=msg.message_id,
     )
-
-    create_timer(context, entry)

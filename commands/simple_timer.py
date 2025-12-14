@@ -1,45 +1,29 @@
-# ==================================================
-# commands/simple_timer.py
-# ==================================================
-
 from datetime import datetime, timedelta, timezone
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from core.models import TimerEntry
 from core.timers import create_timer
 
 
 async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Формат: /timer 10s текст")
+    if len(context.args) < 1:
+        await update.message.reply_text("Usage: /timer 10s text")
         return
 
-    raw = context.args[0].lower()
-    message = " ".join(context.args[1:]) or None
+    duration = context.args[0]
+    text = " ".join(context.args[1:]) or "⏱ Таймер"
 
-    seconds = 0
-    if raw.endswith("s"):
-        seconds = int(raw[:-1])
-    elif raw.endswith("m"):
-        seconds = int(raw[:-1]) * 60
-    elif raw.endswith("h"):
-        seconds = int(raw[:-1]) * 3600
-    else:
-        await update.message.reply_text("Неверный формат времени.")
-        return
-
+    seconds = int(duration.rstrip("s"))
     target_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
-    msg = await update.message.reply_text(
-        f"⏳ <b>Осталось:</b> {seconds} сек.",
-        parse_mode="HTML",
-    )
+    msg = await update.message.reply_text("⏳ Таймер запущен...")
 
-    create_timer(
-        context,
+    entry = TimerEntry(
         chat_id=update.effective_chat.id,
+        message=text,
         target_time=target_time,
         message_id=msg.message_id,
-        message=message,
-        pin_message_id=None,
     )
+
+    create_timer(context, entry)

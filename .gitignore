@@ -36,4 +36,4 @@ docker-compose.yml
 # Backup / temp
 *.tmp
 *.bak
-*.swp
+*.swp.DS_Store

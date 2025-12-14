@@ -5,112 +5,77 @@
 import logging
 from datetime import datetime, timezone
 
+from telegram import constants
 from telegram.ext import ContextTypes
+
+from core.formatter import choose_update_interval
+from core.timers import cancel_timer
 
 logger = logging.getLogger(__name__)
 
 
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def choose_interval(remaining: int) -> int:
-    """
-    Умный интервал обновления:
-    """
-    if remaining > 24 * 3600:      # > 1 дня
-        return 3600                # раз в час
-    if remaining > 6 * 3600:       # > 6 часов
-        return 900                 # раз в 15 минут
-    if remaining > 3600:           # > 1 часа
-        return 300                 # раз в 5 минут
-    if remaining > 600:            # > 10 минут
-        return 60                  # раз в минуту
-    if remaining > 60:             # > 1 минуты
-        return 10                  # раз в 10 секунд
-    return 1                       # финальный отсчёт
-
-
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    if job is None:
-        return
-
-    data = job.data or {}
-    job_name = data.get("job_name")
-
-    # ==================================================
-    # 🔴 GUARD: если таймер отменён — УМЕРЕТЬ
-    # ==================================================
-    store = context.bot_data.get("timers_runtime", {})
-    if not job_name or job_name not in store:
-        try:
-            job.schedule_removal()
-        except Exception:
-            pass
-        return
-    # ==================================================
+    data = context.job.data
 
     chat_id = data["chat_id"]
     message_id = data["message_id"]
     target_time = data["target_time"]
     label = data.get("label", "")
+    job_name = data["job_name"]
 
-    now = _utc_now()
-    remaining = int((target_time - now).total_seconds())
+    now = datetime.now(timezone.utc)
+    sec_left = int((target_time - now).total_seconds())
 
-    # ---------- время вышло ----------
-    if remaining <= 0:
+    # ⏰ ВРЕМЯ ВЫШЛО
+    if sec_left <= 0:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=f"⏰ Time is up!\n{label}" if label else "⏰ Time is up!",
+                text=f"⏰ Время вышло!\n{label}",
             )
         except Exception:
             pass
 
-        store.pop(job_name, None)
-
-        try:
-            job.schedule_removal()
-        except Exception:
-            pass
+        cancel_timer(context, job_name)
         return
 
-    # ---------- формат времени ----------
-    days, rem = divmod(remaining, 86400)
+    # ⏳ формат времени
+    days, rem = divmod(sec_left, 86400)
     hours, rem = divmod(rem, 3600)
     minutes, seconds = divmod(rem, 60)
 
-    parts = []
+    time_str = []
     if days:
-        parts.append(f"{days}д")
+        time_str.append(f"{days}д")
     if hours:
-        parts.append(f"{hours}ч")
+        time_str.append(f"{hours}ч")
     if minutes:
-        parts.append(f"{minutes}м")
-    parts.append(f"{seconds}с")
+        time_str.append(f"{minutes}м")
+    time_str.append(f"{seconds}с")
 
-    text = f"⏳ {' '.join(parts)}"
+    text = f"⏳ {' '.join(time_str)}"
     if label:
         text += f"\n{label}"
 
+    # ✏️ обновляем сообщение
     try:
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=message_id,
             text=text,
+            parse_mode=constants.ParseMode.HTML,
         )
     except Exception:
         pass
 
-    # ---------- следующий тик (АДАПТИВНЫЙ) ----------
-    interval = choose_interval(remaining)
+    # 🧠 УМНЫЙ ИНТЕРВАЛ
+    next_tick = choose_update_interval(sec_left)
 
+    # ❗ ВАЖНО: НЕ создавать новый job — используем run_once
     context.job_queue.run_once(
         countdown_tick,
-        when=interval,
+        when=next_tick,
         name=job_name,
         data=data,
     )

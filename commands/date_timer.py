@@ -2,59 +2,65 @@
 # commands/date_timer.py
 # ==================================================
 
+import re
 from datetime import datetime, timedelta, timezone
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from core.timers import create_timer
 
 
-async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    /timerdate DD.MM.YYYY HH:MM +TZ text [--pin]
-    """
+DATE_RE = re.compile(
+    r"^(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})\s*([+-]\d+)?\s*(.*)$"
+)
 
-    if len(context.args) < 3:
+
+async def date_timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
         await update.message.reply_text(
-            "Usage: /timerdate 31.12.2025 23:59 +3 Text [--pin]"
+            "Использование:\n"
+            "/timerdate 31.12.2025 23:59 +3 Новый год 🎆"
         )
         return
 
-    date_str = context.args[0]
-    time_str = context.args[1]
-    tz_str = context.args[2]
+    text = " ".join(context.args)
+    match = DATE_RE.match(text)
 
-    pin = "--pin" in context.args
-    text_parts = [a for a in context.args[3:] if a != "--pin"]
-    text = " ".join(text_parts) or "⏰ Таймер"
-
-    try:
-        tz_hours = int(tz_str.replace("+", ""))
-    except ValueError:
-        await update.message.reply_text("Invalid timezone format. Example: +3")
+    if not match:
+        await update.message.reply_text("Неверный формат даты.")
         return
+
+    date_str, time_str, tz_str, label = match.groups()
+    tz_hours = int(tz_str) if tz_str else 0
+
+    # --- ПРАВИЛЬНЫЙ timezone ---
+    local_tz = timezone(timedelta(hours=tz_hours))
 
     local_dt = datetime.strptime(
         f"{date_str} {time_str}", "%d.%m.%Y %H:%M"
+    ).replace(tzinfo=local_tz)
+
+    target_time = local_dt.astimezone(timezone.utc)
+
+    if target_time <= datetime.now(timezone.utc):
+        await update.message.reply_text("⛔ Это время уже прошло.")
+        return
+
+    # --- отправляем сообщение ---
+    msg = await update.message.reply_text("⏳")
+
+    # --- пиним ИМЕННО ЕГО ---
+    await context.bot.pin_chat_message(
+        chat_id=update.effective_chat.id,
+        message_id=msg.message_id,
     )
 
-    target_time = (
-        local_dt.replace(tzinfo=timezone.utc)
-        - timedelta(hours=tz_hours)
-    )
-
-    msg = await update.message.reply_text("⏳ Таймер создан...")
-
-    if pin:
-        await context.bot.pin_chat_message(
-            chat_id=update.effective_chat.id,
-            message_id=msg.message_id,
-        )
-
+    # --- создаём таймер ---
     create_timer(
         context=context,
         chat_id=update.effective_chat.id,
         target_time=target_time,
-        message=text,
+        message=label or "",
         pin_message_id=msg.message_id,
     )

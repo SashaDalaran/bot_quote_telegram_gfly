@@ -3,7 +3,7 @@
 # ==================================================
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
@@ -37,7 +37,6 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.warning("Final edit failed: %s", e)
 
-        # auto-unpin
         if entry.pin_message_id:
             try:
                 await bot.unpin_chat_message(
@@ -47,10 +46,9 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             except Exception as e:
                 logger.warning("Unpin failed: %s", e)
 
-        job.schedule_removal()
-        return
+        return  # ❗ job уже удалён автоматически
 
-    # ===== UPDATE COUNTDOWN =====
+    # ===== UPDATE MESSAGE =====
     text = f"⏳ <b>Осталось:</b> {remaining} сек."
     if entry.message:
         text += f"\n{entry.message}"
@@ -65,9 +63,12 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.warning("Edit failed: %s", e)
 
+    # ===== SCHEDULE NEXT TICK (NEW JOB) =====
     delay = choose_update_interval(remaining)
 
-    job.reschedule(
-        trigger="date",
-        run_date=now + timedelta(seconds=delay),
+    context.job_queue.run_once(
+        countdown_tick,
+        delay,
+        data=entry,
+        name=entry.job_name,
     )

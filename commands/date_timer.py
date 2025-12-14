@@ -51,4 +51,7 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sent = await update.message.reply_text(
         f"⏳ <b>Timer created</b>\n"
-        f"Date: {date_str} {time_
+        f"📅 Date: {date_str} {time_str} (UTC{tz_offset:+})\n"
+        f"📝 Message: {message}"
+)
+

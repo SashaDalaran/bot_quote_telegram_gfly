@@ -2,7 +2,7 @@
 # core/countdown.py
 # ==================================================
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 
@@ -10,17 +10,13 @@ from core.formatter import choose_update_interval
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
-    """
-    Single countdown tick.
-    This function RESCHEDULES ITSELF until time is up.
-    """
     entry = context.job.data
     bot = context.bot
 
     now = datetime.now(timezone.utc)
     sec_left = int((entry.target_time - now).total_seconds())
 
-    # ---------- TIME IS UP ----------
+    # ===== FINISH =====
     if sec_left <= 0:
         await bot.send_message(
             chat_id=entry.chat_id,
@@ -28,7 +24,6 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.HTML,
         )
 
-        # auto-unpin if needed
         if entry.pin_message_id:
             try:
                 await bot.unpin_chat_message(
@@ -38,11 +33,14 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
-        return  # ⛔️ НЕ пересоздаём job
+        return  # ⛔️ ничего больше не планируем
 
-    # ---------- COUNTDOWN UPDATE ----------
+    # ===== COUNTDOWN MESSAGE =====
     mins, secs = divmod(sec_left, 60)
-    time_str = f"{mins} мин. {secs} сек." if mins else f"{secs} сек."
+    if mins:
+        time_str = f"{mins} мин. {secs} сек."
+    else:
+        time_str = f"{secs} сек."
 
     await bot.send_message(
         chat_id=entry.chat_id,
@@ -50,6 +48,12 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.HTML,
     )
 
-    # ---------- RESCHEDULE SAME JOB ----------
+    # ===== NEXT TICK =====
     delay = choose_update_interval(sec_left)
-    context.job.reschedule(trigger="date", run_date=now + timedelta(seconds=delay))
+
+    context.job_queue.run_once(
+        countdown_tick,
+        when=delay,
+        data=entry,
+        name=entry.job_name,
+    )

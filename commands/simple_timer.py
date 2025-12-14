@@ -15,7 +15,7 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "❌ Usage:\n"
-            "/timer 10s text\n"
+            "/timer 10s чай\n"
             "/timer 5m\n"
             "/timer 1h20m Boss pull"
         )
@@ -46,6 +46,5 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id,
         target_time=target_time,
         message=message,
-        message_id=sent.message_id,
         pin_message_id=None,
     )

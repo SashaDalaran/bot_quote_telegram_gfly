@@ -18,27 +18,30 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ Usage:\n"
             "/timerdate DD.MM.YYYY HH:MM +TZ text [--pin]\n\n"
             "Example:\n"
-            "/timerdate 31.12.2025 23:59 +3 New Year! --pin"
+            "/timerdate 31.12.2025 23:59 +3 Новый год 🎆 --pin"
         )
         return
 
     date_str, time_str, gmt = args[:3]
-    raw_text = " ".join(args[3:]) or "⏰ Time is up!"
+    text = " ".join(args[3:]) or "⏰ Time is up!"
 
     pin = False
-    if raw_text.endswith("--pin"):
+    if text.endswith("--pin"):
         pin = True
-        raw_text = raw_text[:-5].strip()
+        text = text[:-5].strip()
 
     try:
         base_dt = datetime.strptime(
-            f"{date_str} {time_str}", "%d.%m.%Y %H:%M"
+            f"{date_str} {time_str}",
+            "%d.%m.%Y %H:%M",
         )
 
         if not (gmt.startswith("+") or gmt.startswith("-")):
-            raise ValueError("GMT must be like +3 or -5")
+            raise ValueError("Timezone must be like +3 or -5")
 
-        tz = timezone(timedelta(hours=int(gmt)))
+        tz_offset = int(gmt)
+        tz = timezone(timedelta(hours=tz_offset))
+
         target_time = base_dt.replace(tzinfo=tz).astimezone(timezone.utc)
 
         remaining = int((target_time - datetime.now(timezone.utc)).total_seconds())
@@ -51,7 +54,24 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sent = await update.message.reply_text(
         f"⏳ <b>Timer created</b>\n"
-        f"📅 Date: {date_str} {time_str} (UTC{tz_offset:+})\n"
-        f"📝 Message: {message}"
-)
+        f"📅 Date: {date_str} {time_str} (GMT{gmt})\n"
+        f"⏱ Remaining: {format_remaining_time(remaining)}\n"
+        f"📝 Message: {text}",
+        parse_mode="HTML",
+    )
 
+    pinned_id = None
+    if pin:
+        try:
+            await sent.pin()
+            pinned_id = sent.message_id
+        except Exception:
+            pass
+
+    create_timer(
+        context=context,
+        chat_id=update.effective_chat.id,
+        target_time=target_time,
+        message=text,
+        pin_message_id=pinned_id,
+    )

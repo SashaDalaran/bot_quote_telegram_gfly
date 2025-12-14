@@ -8,39 +8,40 @@ from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
 from core.formatter import choose_update_interval
-from core.scheduler import countdown_tick
+from core.countdown import countdown_tick
 
 logger = logging.getLogger(__name__)
 
 
 def create_timer(
+    *,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
     message: str,
-    pin_message_id: int,
-) -> str:
+    pin_message_id: int | None,
+) -> None:
     """
-    Create one-time countdown timer.
+    Create a one-time countdown timer.
     """
 
+    # normalize to UTC
     if target_time.tzinfo is None:
         target_time = target_time.replace(tzinfo=timezone.utc)
     else:
         target_time = target_time.astimezone(timezone.utc)
 
-    job_name = f"timer:{chat_id}:{int(target_time.timestamp())}"
-
     entry = TimerEntry(
         chat_id=chat_id,
         target_time=target_time,
-        pin_message_id=pin_message_id,
         message=message,
-        job_name=job_name,
+        pin_message_id=pin_message_id,
     )
 
     remaining = int((target_time - datetime.now(timezone.utc)).total_seconds())
     delay = choose_update_interval(remaining)
+
+    job_name = f"timer:{chat_id}:{int(target_time.timestamp())}"
 
     context.job_queue.run_once(
         countdown_tick,
@@ -50,12 +51,11 @@ def create_timer(
     )
 
     logger.info("Timer created: %s", job_name)
-    return job_name
 
 
 def cancel_all_timers(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> int:
     """
-    Cancel all timers for chat.
+    Cancel all timers for a chat.
     """
     removed = 0
 
@@ -64,5 +64,5 @@ def cancel_all_timers(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> int:
             job.schedule_removal()
             removed += 1
 
-    logger.info("Cancelled %s timers for chat %s", removed, chat_id)
+    logger.info("Cancelled %d timers for chat %s", removed, chat_id)
     return removed

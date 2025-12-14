@@ -1,3 +1,7 @@
+# ==================================================
+# core/models.py
+# ==================================================
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
@@ -20,7 +24,6 @@ class TimerEntry:
 
     @property
     def job_name(self) -> str:
-        # unique & stable job id
         ts = int(self.target_time.timestamp())
         return f"timer:{self.chat_id}:{ts}"
 

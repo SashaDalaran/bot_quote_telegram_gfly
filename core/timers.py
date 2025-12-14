@@ -23,6 +23,7 @@ def create_timer(
     All next ticks are self-scheduled.
     """
 
+    # normalize timezone
     if entry.target_time.tzinfo is None:
         entry.target_time = entry.target_time.replace(tzinfo=timezone.utc)
     else:
@@ -31,6 +32,9 @@ def create_timer(
     seconds_left = int(
         (entry.target_time - datetime.now(timezone.utc)).total_seconds()
     )
+
+    if seconds_left <= 0:
+        seconds_left = 0
 
     delay = choose_update_interval(seconds_left)
 

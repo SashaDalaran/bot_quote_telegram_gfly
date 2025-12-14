@@ -80,7 +80,7 @@ def main() -> None:
     app.add_handler(CommandHandler("timer", timer_command, filters=private_and_groups))
     app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
-    app.add_handler(CommandHandler("cancelall", cancelall_command, filters=private_and_groups))
+    app.add_handler(CommandHandler("cancelall", filters=private_and_groups))
 
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))

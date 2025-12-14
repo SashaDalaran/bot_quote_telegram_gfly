@@ -14,15 +14,7 @@ from core.countdown import countdown_tick
 logger = logging.getLogger(__name__)
 
 
-def create_timer(
-    context: ContextTypes.DEFAULT_TYPE,
-    entry: TimerEntry,
-) -> str:
-    """
-    Schedule FIRST countdown tick.
-    All next ticks are self-scheduled.
-    """
-
+def create_timer(context: ContextTypes.DEFAULT_TYPE, entry: TimerEntry) -> str:
     # normalize timezone
     if entry.target_time.tzinfo is None:
         entry.target_time = entry.target_time.replace(tzinfo=timezone.utc)
@@ -32,20 +24,19 @@ def create_timer(
     seconds_left = int(
         (entry.target_time - datetime.now(timezone.utc)).total_seconds()
     )
+    seconds_left = max(0, seconds_left)
 
-    if seconds_left <= 0:
-        seconds_left = 0
+    interval = choose_update_interval(seconds_left)
 
-    delay = choose_update_interval(seconds_left)
-
-    context.job_queue.run_once(
+    context.job_queue.run_repeating(
         countdown_tick,
-        delay,
+        interval=interval,
+        first=0,
         data=entry,
         name=entry.job_name,
     )
 
-    logger.info("Timer created: %s", entry.job_name)
+    logger.info("Timer started: %s", entry.job_name)
     return entry.job_name
 
 

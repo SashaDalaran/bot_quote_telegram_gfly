@@ -5,6 +5,7 @@
 def choose_update_interval(sec_left: int) -> float:
     """
     Smart countdown refresh rate.
+    Used only to DECIDE interval at creation time.
     """
     if sec_left > 10 * 60:
         return 30
@@ -12,11 +13,7 @@ def choose_update_interval(sec_left: int) -> float:
         return 5
     if sec_left > 60:
         return 2
-    if sec_left > 10:
-        return 1
-    if sec_left > 3:
-        return 0.5
-    return 0.25
+    return 1
 
 
 def format_duration(seconds: int) -> str:

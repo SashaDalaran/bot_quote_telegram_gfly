@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from telegram.ext import ContextTypes
 
-from core.formatter import choose_update_interval, format_duration
+from core.formatter import format_duration
 from core.models import TimerEntry
 
 logger = logging.getLogger(__name__)
@@ -32,17 +32,16 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
         )
 
-        # ---------- auto unpin ----------
         if entry.pin_message_id:
             try:
                 await context.bot.unpin_chat_message(
                     chat_id=entry.chat_id,
                     message_id=entry.pin_message_id,
                 )
-            except Exception as e:
-                logger.warning("Unpin failed: %s", e)
+            except Exception:
+                pass
 
-        # job already auto-removed by run_once, just exit
+        job.schedule_removal()
         return
 
     # ================= FORMAT =================
@@ -52,7 +51,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
     if entry.message:
         text += f"\n{entry.message}"
 
-    # ================= UPDATE MESSAGE =================
+    # ================= UPDATE =================
     if text != getattr(entry, "last_text", None):
         try:
             await context.bot.edit_message_text(
@@ -63,16 +62,4 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
             )
             entry.last_text = text
         except Exception as e:
-            logger.debug("Edit message skipped: %s", e)
-
-    # ================= NEXT TICK =================
-    delay = choose_update_interval(seconds_left)
-
-    # IMPORTANT:
-    # run_once auto-removes the job after execution
-    context.job_queue.run_once(
-        countdown_tick,
-        delay,
-        data=entry,
-        name=entry.job_name,
-    )
+            logger.debug("Edit skipped: %s", e)

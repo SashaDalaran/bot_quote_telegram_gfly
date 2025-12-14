@@ -1,65 +1,43 @@
-# ==================================================
-# core/countdown.py
-# ==================================================
-
-import logging
 from datetime import datetime, timezone
 
-from telegram.error import BadRequest
-from telegram.ext import ContextTypes
-
-from core.formatter import format_remaining, choose_update_interval
-
-logger = logging.getLogger(__name__)
+from core.formatter import format_duration
+from core.timers import cancel_timer
 
 
-async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
-    job = context.job
-    data = job.data
-
-    chat_id = data["chat_id"]
-    message_id = data["message_id"]
-    target_time = data["target_time"]
-    label = data.get("label", "")
-    job_name = data["job_name"]
-
+async def countdown_tick(
+    context,
+    *,
+    chat_id: int,
+    message_id: int,
+    target_time: datetime,
+    label: str,
+    job_name: str,
+):
     now = datetime.now(timezone.utc)
     remaining = int((target_time - now).total_seconds())
 
-    # ⛔ ВРЕМЯ ВЫШЛО
+    # ⛔️ ТАЙМЕР ЗАКОНЧИЛСЯ
     if remaining <= 0:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"⏰ Время вышло!\n{label}".strip(),
-            )
-        except BadRequest:
-            pass
-
-        job.schedule_removal()
-        return
-
-    # ⏳ Обновляем текст
-    text = f"⏳ {format_remaining(remaining)}"
-    if label:
-        text += f"\n{label}"
-
-    try:
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=message_id,
-            text=text,
+            text=f"⏰ {label}\nВремя вышло!"
         )
-    except BadRequest:
-        logger.warning("Failed to edit message for %s", job_name)
 
-    # ⏱ Следующий тик — УМНЫЙ интервал
-    interval = choose_update_interval(remaining)
+        # анпин ОБЯЗАТЕЛЬНО
+        try:
+            await context.bot.unpin_chat_message(chat_id, message_id)
+        except Exception:
+            pass
 
-    context.job_queue.run_once(
-        countdown_tick,
-        when=interval,
-        name=job_name,
-        data=data,
+        cancel_timer(context, job_name)
+        return
+
+    # ⏳ обычное обновление
+    text = f"⏳ {format_duration(remaining)}\n{label}"
+
+    await context.bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=message_id,
+        text=text
     )

@@ -33,7 +33,7 @@ from commands.quotes import quote_command
 
 from commands.simple_timer import timer_command
 from commands.date_timer import timerdate_command
-from commands.cancel import cancel_command, cancelall_command
+from commands.cancel import cancel_command
 
 from commands.holidays_cmd import holidays_command
 from commands.murloc_ai import murloc_ai_command

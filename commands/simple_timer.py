@@ -1,9 +1,8 @@
 # ==================================================
-# commands/simple_timer.py — Telegram Simple Timer
+# commands/simple_timer.py
 # ==================================================
 
 from datetime import datetime, timedelta, timezone
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -23,7 +22,7 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     duration_raw = context.args[0]
-    text = " ".join(context.args[1:]) or "⏰ Time is up!"
+    message = " ".join(context.args[1:]) or "⏰ Time is up!"
 
     try:
         seconds = parse_duration(duration_raw)
@@ -35,17 +34,18 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     target_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
-    info_msg = await update.message.reply_text(
-        f"⏱ **Timer started!**\n"
-        f"Duration: `{format_remaining_time(seconds)}`\n"
-        f"Message: {text}",
-        parse_mode="Markdown",
+    sent = await update.message.reply_text(
+        f"⏱ <b>Timer started!</b>\n"
+        f"Duration: {format_remaining_time(seconds)}\n"
+        f"Message: {message}",
+        parse_mode="HTML",
     )
 
-    await create_timer(
+    create_timer(
         context=context,
         chat_id=update.effective_chat.id,
         target_time=target_time,
-        message=text,
-        pin_message_id=info_msg.message_id,
+        message=message,
+        message_id=sent.message_id,
+        pin_message_id=None,
     )

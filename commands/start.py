@@ -8,8 +8,13 @@ START_TEXT = (
     "📜 Используй /help чтобы увидеть все команды."
 )
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        START_TEXT,
-        parse_mode="Markdown"
+async def start_command(update, context):
+    target = update.message or update.channel_post
+
+    if not target:
+        return
+
+    await target.reply_text(
+        "👋 Бот запущен!\n"
+        "Используй команды в личных сообщениях или группе."
     )

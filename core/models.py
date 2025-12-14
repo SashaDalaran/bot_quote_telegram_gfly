@@ -10,11 +10,12 @@ from typing import Optional
 @dataclass(slots=True)
 class TimerEntry:
     """
-    One-time timer with countdown.
-    All timestamps are UTC.
+    One-time countdown timer.
+    All timestamps are stored in UTC.
     """
     chat_id: int
-    target_time: datetime
+    target_time: datetime            # UTC
+    message_id: int                  # message being edited
     message: Optional[str] = None
     pin_message_id: Optional[int] = None
     created_at: datetime = field(

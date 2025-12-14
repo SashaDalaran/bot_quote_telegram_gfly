@@ -4,44 +4,52 @@
 
 from datetime import datetime, timezone
 from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 
-from core.models import TimerEntry
 from core.formatter import choose_update_interval
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE):
-    entry: TimerEntry = context.job.data
+    """
+    Single countdown tick.
+    This function RESCHEDULES ITSELF until time is up.
+    """
+    entry = context.job.data
+    bot = context.bot
 
     now = datetime.now(timezone.utc)
-    remaining = int((entry.target_time - now).total_seconds())
+    sec_left = int((entry.target_time - now).total_seconds())
 
-    # 🔔 FINISH
-    if remaining <= 0:
-        await context.bot.send_message(
-            entry.chat_id,
-            f"⏰ <b>Time is up!</b>\n{entry.message}",
-            parse_mode="HTML",
+    # ---------- TIME IS UP ----------
+    if sec_left <= 0:
+        await bot.send_message(
+            chat_id=entry.chat_id,
+            text=f"⏰ <b>Time is up!</b>\n{entry.message or ''}",
+            parse_mode=ParseMode.HTML,
         )
 
-        # 📌 UNPIN
+        # auto-unpin if needed
         if entry.pin_message_id:
             try:
-                await context.bot.unpin_chat_message(
-                    entry.chat_id,
-                    entry.pin_message_id,
+                await bot.unpin_chat_message(
+                    chat_id=entry.chat_id,
+                    message_id=entry.pin_message_id,
                 )
             except Exception:
                 pass
 
-        context.job.schedule_removal()
-        return
+        return  # ⛔️ НЕ пересоздаём job
 
-    # ⏳ RESCHEDULE
-    delay = choose_update_interval(remaining)
+    # ---------- COUNTDOWN UPDATE ----------
+    mins, secs = divmod(sec_left, 60)
+    time_str = f"{mins} мин. {secs} сек." if mins else f"{secs} сек."
 
-    context.job_queue.run_once(
-        countdown_tick,
-        delay,
-        data=entry,
-        name=context.job.name,
+    await bot.send_message(
+        chat_id=entry.chat_id,
+        text=f"⏳ Осталось: <b>{time_str}</b>",
+        parse_mode=ParseMode.HTML,
     )
+
+    # ---------- RESCHEDULE SAME JOB ----------
+    delay = choose_update_interval(sec_left)
+    context.job.reschedule(trigger="date", run_date=now + timedelta(seconds=delay))

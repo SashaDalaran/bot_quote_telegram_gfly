@@ -4,8 +4,8 @@
 # ==================================================
 
 import os
-from datetime import datetime, time, timezone, timedelta
-from telegram.ext import Application
+from datetime import time, timezone, timedelta, datetime
+from telegram.ext import Application, ContextTypes
 
 from services.banlu_service import (
     get_random_banlu_quote,
@@ -21,24 +21,11 @@ BANLU_CHANNEL_ID = int(os.getenv("BANLU_CHANNEL_ID", "0"))
 # ===========================
 # Job callback
 # ===========================
-async def send_banlu_daily(context):
-    """
-    Send daily Ban'Lu quote
-    """
-    if BANLU_CHANNEL_ID == 0:
-        return
-
-    today = datetime.now(TZ).date()
-
-    # 🛡 защита от дублей
-    last_sent = context.bot_data.get("banlu_last_sent")
-    if last_sent == today:
-        return
-
+async def send_banlu_daily(context: ContextTypes.DEFAULT_TYPE):
     quotes = context.bot_data.get("banlu_quotes", [])
     quote = get_random_banlu_quote(quotes)
 
-    if not quote:
+    if not quote or not BANLU_CHANNEL_ID:
         return
 
     await context.bot.send_message(
@@ -46,40 +33,22 @@ async def send_banlu_daily(context):
         text=format_banlu_message(quote),
     )
 
-    # ✅ фиксируем успешную отправку
-    context.bot_data["banlu_last_sent"] = today
-
+    context.bot_data["banlu_last_sent"] = datetime.now(TZ).date()
 
 # ===========================
 # Job registration
 # ===========================
 def setup_banlu_daily(application: Application):
-    # 🕙 ежедневная отправка
+    # основной ежедневный job
     application.job_queue.run_daily(
         send_banlu_daily,
         time=time(hour=10, minute=0, tzinfo=TZ),
         name="banlu_daily",
     )
 
-    # 🔁 catch-up при старте машины
-    application.create_task(banlu_catch_up(application))
-
-
-# ===========================
-# Catch-up logic
-# ===========================
-async def banlu_catch_up(application: Application):
-    """
-    If bot started after daily time — send quote immediately
-    """
-    today = datetime.now(TZ).date()
-    last_sent = application.bot_data.get("banlu_last_sent")
-
-    if last_sent == today:
-        return
-
-    class Ctx:
-        bot = application.bot
-        bot_data = application.bot_data
-
-    await send_banlu_daily(Ctx())
+    # catch-up job (ОДИН РАЗ после старта)
+    application.job_queue.run_once(
+        send_banlu_daily,
+        when=5,  # через 5 секунд после запуска
+        name="banlu_catch_up",
+    )

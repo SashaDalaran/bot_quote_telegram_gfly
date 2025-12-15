@@ -15,11 +15,18 @@ from services.holidays_format import format_holidays_message
 # ===========================
 TZ = timezone(timedelta(hours=3))  # GMT+3
 
-HOLIDAYS_CHANNEL_IDS = [
-    int(cid)
-    for cid in os.getenv("HOLIDAYS_CHANNEL_IDS", "").split(",")
-    if cid.strip().isdigit()
-]
+HOLIDAYS_CHANNEL_IDS = []
+
+raw_ids = os.getenv("HOLIDAYS_CHANNEL_IDS", "")
+for cid in raw_ids.split(","):
+    cid = cid.strip()
+    if not cid:
+        continue
+    try:
+        HOLIDAYS_CHANNEL_IDS.append(int(cid))
+    except ValueError:
+        pass
+
 
 # ===========================
 # Job callback

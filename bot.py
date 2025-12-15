@@ -82,6 +82,9 @@ def main() -> None:
     # ---------- app ----------
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # ===== daily state =====
+    app.bot_data.setdefault("banlu_last_sent", None)
+    app.bot_data.setdefault("holidays_last_sent", None)
     app.bot_data["quotes"] = quotes
     app.bot_data["banlu_quotes"] = banlu_quotes
 

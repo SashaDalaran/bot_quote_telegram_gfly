@@ -1,39 +1,84 @@
-# Python
+# ==================================================
+# .gitignore — Git Repository Exclusions
+# ==================================================
+#
+# This file defines which files and directories
+# should be ignored by Git version control.
+#
+# Purpose:
+# - Keep the repository clean
+# - Avoid committing generated or local-only files
+# - Prevent accidental leaks of secrets or environments
+#
+# IMPORTANT:
+# - Everything listed here is NOT tracked by Git
+# - These rules apply to all contributors
+#
+# ==================================================
+
+# ==================================================
+# Python cache & compiled files
+# ==================================================
+
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Virtual env
+# ==================================================
+# Virtual environments
+# ==================================================
+
+.venv/
 venv/
-env/
-.env/
-*.env
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# ==================================================
+# Environment variables & secrets
+# ==================================================
 
+.env
+.env.*
+*.secret
+
+# ==================================================
 # Logs
+# ==================================================
+
 *.log
 
-# Docker
-docker-compose.yml
+# ==================================================
+# Build & distribution artifacts
+# ==================================================
 
-# IDE
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ==================================================
+# Docker-related artifacts
+# ==================================================
+
+*.pid
+
+# ==================================================
+# IDE / Editor files
+# ==================================================
+
 .vscode/
 .idea/
-*.iml
+*.swp
+*.swo
 
-# Project-specific
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
+# ==================================================
+# OS-specific files
+# ==================================================
 
-# Backup / temp
-*.tmp
-*.bak
-*.swp.DS_Store
+.DS_Store
+Thumbs.db
+
+# ==================================================
+# Fly.io local files
+# ==================================================
+
+.fly/

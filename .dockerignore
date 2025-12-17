@@ -1,88 +1,66 @@
-# ------------------------
-# Python cache
-# ------------------------
+# ==================================================
+# .dockerignore — Docker Build Context Exclusions
+# ==================================================
+#
+# This file defines which files and directories
+# should be excluded from the Docker build context.
+#
+# Purpose:
+# - Reduce Docker image size
+# - Speed up build time
+# - Avoid leaking local or sensitive files
+#
+# IMPORTANT:
+# - Everything listed here is NOT sent to Docker
+#   during the build process.
+#
+# ==================================================
+
+# ==================================================
+# Python cache & virtual environments
+# ==================================================
+
 __pycache__/
-**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.egg-info
-
-# ------------------------
-# Virtual environments
-# ------------------------
+.venv/
 venv/
-env/
-.env/
 
-# ------------------------
-# Test artifacts
-# ------------------------
-*.coverage
-.coverage
-htmlcov/
-pytest_cache/
+# ==================================================
+# Local development files
+# ==================================================
 
-# ------------------------
-# Logs and databases
-# ------------------------
+.env
+.env.*
 *.log
-*.sqlite3
 
-# ------------------------
-# Git / VCS
-# ------------------------
+# ==================================================
+# Version control
+# ==================================================
+
 .git/
 .gitignore
 
-# ------------------------
-# Editors and IDEs
-# ------------------------
+# ==================================================
+# IDE / Editor files
+# ==================================================
+
 .vscode/
 .idea/
-*.iml
-
-# ------------------------
-# macOS trash files
-# ------------------------
-.DS_Store
-**/.DS_Store
-.AppleDouble
-.LSOverride
-Icon?
-.Spotlight-V100
-.Trashes
-
-# ------------------------
-# Docker / infra not needed inside the image
-# ------------------------
-docker-compose.yml
-fly.toml
-
-# ------------------------
-# Documentation & temp
-# ------------------------
-*.md
-*.txt~
-*.bak
 *.swp
-*.tmp
-*.cache
 
-# ------------------------
-# Images (logos, banners) — important for your project
-# ------------------------
-*.png
-*.jpg
-*.jpeg
-*.gif
+# ==================================================
+# OS-specific files
+# ==================================================
 
-# ------------------------
-# Python application packages (MUST be included)
-# ------------------------
-!core/
-!core/**
-!services/
-!services/**
-!commands/
-!commands/**
+.DS_Store
+Thumbs.db
+
+# ==================================================
+# Build artifacts
+# ==================================================
+
+dist/
+build/
+*.egg-info/

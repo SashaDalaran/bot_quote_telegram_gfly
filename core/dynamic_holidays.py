@@ -1,18 +1,40 @@
 # ==================================================
 # core/dynamic_holidays.py — Dynamic Holiday Generator
 # ==================================================
+#
+# This module contains pure date-based logic for
+# dynamically calculated holidays.
+#
+# Responsibilities:
+# - Calculate holidays that do not have a fixed date
+# - Provide normalized holiday objects for the service layer
+#
+# IMPORTANT:
+# - This module contains NO Telegram-specific code
+# - It contains NO formatting or I/O
+# - It operates purely on dates and algorithms
+#
+# ==================================================
 
 from datetime import datetime, timedelta, date
 
-
-# ===========================
-# Western (Catholic) Easter Calculation
-# ===========================
+# ==================================================
+# Western (Catholic) Easter calculation
+# ==================================================
+#
+# Calculates the date of Western (Catholic) Easter
+# using the standard Gregorian computus algorithm.
+#
+# This implementation is deterministic and accurate
+# for all modern Gregorian calendar years.
+#
 def _easter_western(year: int) -> date:
     """
     Calculate the date of Western (Catholic) Easter
-    using the standard Gregorian computus.
-    Returns a datetime.date object.
+    using the Gregorian computus.
+
+    Returns:
+        datetime.date: Easter Sunday for the given year
     """
     a = year % 19
     b = year // 100
@@ -32,31 +54,56 @@ def _easter_western(year: int) -> date:
 
     return date(year, month, day)
 
-
-# ===========================
-# Orthodox Easter (Approximation)
-# ===========================
+# ==================================================
+# Orthodox Easter calculation (approximation)
+# ==================================================
+#
+# Orthodox Easter is traditionally calculated
+# using the Julian calendar.
+#
+# For bot-level accuracy, we approximate Orthodox
+# Easter by adding a 13-day offset to Western Easter.
+#
+# This approximation is sufficient for:
+# - holiday notifications
+# - calendar-style usage
+#
 def _easter_orthodox(year: int) -> date:
     """
-    Approximate Orthodox Easter by adding 13 days
-    to the Western Easter (Julian vs Gregorian shift).
-    This is sufficient for bot-level accuracy.
+    Approximate Orthodox Easter by applying
+    the Julian-to-Gregorian calendar offset.
+
+    Returns:
+        datetime.date: Approximate Orthodox Easter date
     """
     western = _easter_western(year)
     return western + timedelta(days=13)
 
-
-# ===========================
-# Public API: Dynamic Holidays
-# ===========================
+# ==================================================
+# Public API: Dynamic holidays
+# ==================================================
+#
+# Returns dynamically calculated holidays in a
+# normalized dictionary format.
+#
+# Current dynamic holidays:
+# - Catholic Easter
+# - Orthodox Easter
+#
+# If the calculated dates for the current year
+# are already in the past, the function automatically
+# shifts calculations to the next year.
+#
 def get_dynamic_holidays() -> list[dict]:
     """
-    Return upcoming occurrences of:
-      • Catholic Easter
-      • Orthodox Easter
+    Return upcoming dynamic holidays.
 
-    If Easters for the current year have already passed,
-    the function automatically shifts calculations to next year.
+    Each holiday dictionary contains:
+    - full_date: YYYY-MM-DD
+    - date: MM-DD
+    - name: Human-readable holiday name
+    - countries: Region / religion identifiers
+    - categories: Holiday categories
     """
 
     today = datetime.now().date()
@@ -65,7 +112,8 @@ def get_dynamic_holidays() -> list[dict]:
     catholic = _easter_western(year)
     orthodox = _easter_orthodox(year)
 
-    # If both holidays are in the past → use next year
+    # If both holidays already passed this year,
+    # calculate them for the next year
     if max(catholic, orthodox) < today:
         year += 1
         catholic = _easter_western(year)

@@ -1,42 +1,105 @@
-# commands/cancel.py
+# ==================================================
+# commands/cancel.py — Timer Cancellation Commands
+# ==================================================
+#
+# This module defines user-facing commands for
+# cancelling active countdown timers.
+#
+# Commands:
+# - /cancel       → cancel a specific timer (interactive or by index)
+# - /cancelall    → cancel all active timers in the chat
+#
+# Responsibilities:
+# - Retrieve active timers for the current chat
+# - Delegate cancellation to core.timers
+# - Provide clear, user-friendly feedback
+#
+# IMPORTANT:
+# - This module contains NO timer logic
+# - All timer state management lives in core.timers
+#
+# ==================================================
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from core.timers import list_timers, cancel_timer
 
-async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ==================================================
+# /cancelall — cancel all timers
+# ==================================================
+#
+# Cancels all active timers in the current chat.
+#
+async def cancel_all_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
     chat_id = update.effective_chat.id
+    message = update.effective_message
+
     timers = list_timers(context, chat_id)
 
     if not timers:
-        await update.message.reply_text("❌ Нет активных таймеров")
+        await message.reply_text("❌ No active timers")
         return
 
-    for t in timers:
-        cancel_timer(context, t.job_name)
+    for timer in timers:
+        cancel_timer(context, timer.job_name)
 
-    await update.message.reply_text("🧹 Все таймеры отменены")
+    await message.reply_text("🧹 All timers have been cancelled")
 
-async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ==================================================
+# /cancel — cancel a specific timer
+# ==================================================
+#
+# Behavior:
+# - If an index is provided → cancel that timer
+# - If no arguments are provided → show interactive list
+#
+# Example:
+# - /cancel 2
+#
+async def cancel_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
     chat_id = update.effective_chat.id
+    message = update.effective_message
+
     timers = list_timers(context, chat_id)
 
     if not timers:
-        await update.message.reply_text("❌ Нет активных таймеров")
+        await message.reply_text("❌ No active timers")
         return
 
+    # --------------------------------------------------
+    # Cancel by index
+    # --------------------------------------------------
     if context.args:
-        idx = int(context.args[0]) - 1
-        if 0 <= idx < len(timers):
-            cancel_timer(context, timers[idx].job_name)
-            await update.message.reply_text("✅ Таймер отменён")
+        try:
+            index = int(context.args[0]) - 1
+        except ValueError:
+            await message.reply_text("❌ Invalid timer number")
+            return
+
+        if 0 <= index < len(timers):
+            cancel_timer(context, timers[index].job_name)
+            await message.reply_text("✅ Timer cancelled")
         else:
-            await update.message.reply_text("❌ Неверный номер")
+            await message.reply_text("❌ Invalid timer number")
         return
 
-    text = "⛔ Какой таймер отменить?\n\n"
-    for i, t in enumerate(timers, 1):
-        text += f"{i} — {t.label or 'без названия'}\n"
+    # --------------------------------------------------
+    # Interactive selection
+    # --------------------------------------------------
+    #
+    # Show a numbered list of active timers.
+    #
+    text = "⛔ Which timer do you want to cancel?\n\n"
 
-    await update.message.reply_text(text)
+    for i, timer in enumerate(timers, start=1):
+        label = timer.label or "no description"
+        text += f"{i} — {label}\n"
+
+    await message.reply_text(text)

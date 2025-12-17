@@ -1,33 +1,94 @@
+# ==================================================
+# services/holidays_format.py — Holidays Message Formatter
+# ==================================================
+#
+# This module is responsible for converting raw holiday
+# data into a human-readable Telegram message.
+#
+# Responsibilities:
+# - Take a list of holiday objects
+# - Resolve country flags and category emojis
+# - Build a clean, readable, multiline message
+#
+# IMPORTANT:
+# - This module contains NO Telegram API code.
+# - It only formats text.
+# - All emojis and mappings are defined in:
+#     services/holidays_flags.py
+#
+# ==================================================
+
 from typing import List, Dict
+
 from services.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
 
+# ==================================================
+# Type aliases
+# ==================================================
+#
+# A Holiday object is expected to be a dictionary
+# with the following optional keys:
+#
+# - name: str
+# - categories: list[str]
+# - countries: list[str]
+#
 Holiday = Dict[str, object]
 
-
+# ==================================================
+# Message formatting
+# ==================================================
+#
+# Builds a formatted Telegram message containing
+# all holidays for a given day.
+#
+# Formatting rules:
+# - The message starts with a fixed header
+# - Each holiday is separated by an empty line
+# - Only the FIRST country and category are displayed
+# - Fallback emojis are used when data is missing
+#
 def format_holidays_message(holidays: List[Holiday]) -> str:
+
+    # Message header
     lines = ["🎉 Today’s Holidays", ""]
 
-    for h in holidays:
-        name = h.get("name", "—")
-        categories = h.get("categories", [])
-        countries = h.get("countries", [])
+    for holiday in holidays:
+        name = holiday.get("name", "—")
+        categories = holiday.get("categories", [])
+        countries = holiday.get("countries", [])
 
-        # --- страна / флаг ---
+        # --------------------------------------------------
+        # Country / Flag resolution
+        # --------------------------------------------------
+        #
+        # Only the first country is displayed.
+        # If no country is provided or the key is unknown,
+        # a generic global emoji is used.
+        #
         if countries:
             country_key = countries[0]
             flag = COUNTRY_FLAGS.get(country_key, "🌍")
         else:
             flag = "🌍"
 
-        # --- название праздника ---
+        # Holiday name
         lines.append(f"{flag} {name}")
 
-        # --- категория ---
+        # --------------------------------------------------
+        # Category resolution
+        # --------------------------------------------------
+        #
+        # Only the first category is displayed.
+        # Unknown categories fall back to a generic label.
+        #
         if categories:
             category = categories[0]
             emoji = CATEGORY_EMOJIS.get(category, "🔖")
             lines.append(f"{emoji} {category}")
 
-        lines.append("")  # пустая строка между праздниками
+        # Empty line between holidays
+        lines.append("")
 
+    # Join all lines into a single message
     return "\n".join(lines).strip()

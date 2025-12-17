@@ -1,243 +1,273 @@
 <p align="center">
-  <img src="Murloc-Fulltime-Logo.gif" width="220" alt="Project Logo" />
+  <img src="Murloc-Fulltime-Logo.gif" width="220" alt="Murloc Bot Logo" />
 </p>
 
 <h1 align="center">bot-quote-telegram</h1>
 
 <p align="center">
-  A production-grade telegram bot powered by <b>Python 3.11</b>, <b>telegram.py</b>, and <b>Fly.io Machines</b>.  
-  Built for reliability, clean architecture, fast deployment, and minimal resource usage.
+  A production-ready Telegram bot built with <b>Python 3.11</b>, <b>python-telegram-bot</b>, and <b>Fly.io Machines</b>.<br/>
+  Designed with clean architecture, predictable async behavior, and long-term maintainability in mind.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python" />
-  <img src="https://img.shields.io/badge/telegram.py-2.4+-7289DA?style=for-the-badge&logo=telegram" />
+  <img src="https://img.shields.io/badge/python--telegram--bot-21.x-7289DA?style=for-the-badge&logo=telegram" />
   <img src="https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=for-the-badge&logo=docker" />
   <img src="https://img.shields.io/badge/Fly.io-Machines-8A2BE2?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/CI/CD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions" />
 </p>
 
 ---
 
-# ✨ Overview
+## ✨ Overview
 
-`bot-quote-Telegram` is a lightweight Telegram bot featuring:
+**bot-quote-telegram** is a modular Telegram bot that combines:
 
-- 🎮 **Random Game Quotes**  
-- 🧠 **Murloc AI Generator**  
-- ⏱ **Simple and Date Timers (with TZ support)**  
-- 📅 **Static + Dynamic Holidays Engine**  
-- 📡 **Automated Daily Broadcasts**  
-- 🐉 **Ban’Lu Wisdom Delivery**  
-- 🐳 **40MB Optimized Docker Image**  
-- ☁️ **Zero-downtime Fly.io Deployment**
+* entertainment features (quotes, Murloc AI),
+* utility tools (timers),
+* and automated daily content (holidays, Ban’Lu quotes).
 
-The bot architecture prioritizes:
+The project was built as a **reference-quality bot architecture**, not a one-off script.
 
-- modularity  
-- maintainability  
-- predictable async behavior  
-- production-ready DevOps practices  
+### Key goals:
+
+* clean separation of responsibilities
+* predictable async execution
+* minimal runtime state
+* easy extensibility
+* production-safe deployment
 
 ---
 
-# 🚀 Quick Start
+## 🚀 Features
 
-## 1. Create a virtual environment
-```sh
-python3.11 -m venv venv
-source venv/bin/activate
-```
+* 💬 **Random Quotes**
+* 🐸 **Murloc AI Wisdom Generator**
+* ⏱ **Countdown Timers**
 
-## 2. Install dependencies
-```sh
-pip install -r requirements.txt
-```
+  * relative (`/timer 10m`)
+  * absolute date/time (`/timerdate DD.MM.YYYY HH:MM +TZ`)
+* 📅 **Holiday System**
 
-## 3. Configure environment variables
-```sh
-export TELEGRAM_BOT_TOKEN="your-token"
-export BANLU_CHANNEL_ID="123456"
-export HOLIDAYS_CHANNEL_IDS="111,222,333"
-```
+  * static JSON holidays
+  * dynamic holidays (e.g. Easter)
+* 📡 **Daily Automated Jobs**
 
-## 4. Start the bot
-```sh
-python bot.py
-```
+  * Ban’Lu quote (10:00 MSK)
+  * Holidays broadcast (10:01 MSK)
+* 🐳 **Optimized Docker image (~40 MB)**
+* ☁️ **Fly.io zero-downtime deployment**
 
 ---
 
-# 📁 Project Structure (Accurate)
+## 🧠 Architectural Philosophy
+
+The bot follows a **strict layered architecture**:
+
+```
+Commands  →  Services  →  Core
+```
+
+### Core
+
+Pure logic and infrastructure:
+
+* no Telegram API
+* no formatting
+* no user input
+
+### Services
+
+Application/domain logic:
+
+* loading data
+* formatting domain messages
+* orchestration helpers
+
+### Commands
+
+User-facing layer:
+
+* parse user input
+* delegate to services/core
+* send replies
+
+This separation allows:
+
+* easy testing
+* safe refactoring
+* predictable growth
+
+---
+
+## 📁 Project Structure (Actual)
 
 ```
 bot_quote_telegram/
 │
-├── bot.py                        # Application entrypoint
+├── bot.py                     # Application entrypoint
 │
-├── commands/                     # All bot commands (Cogs)
-│     ├── cancel.py
-│     ├── date_timer.py
-│     ├── help_cmd.py
-│     ├── murloc_ai.py
-│     ├── quotes.py
-│     ├── simple_timer.py
-│     └── holidays_cmd.py
+├── commands/                  # Telegram commands (user-facing)
+│   ├── start.py
+│   ├── help_cmd.py
+│   ├── simple_timer.py
+│   ├── date_timer.py
+│   ├── cancel.py
+│   ├── chat_id.py
+│   ├── quotes.py
+│   ├── holidays_cmd.py
+│   └── murloc_ai.py
 │
-├── core/                         # Core engine logic
-│     ├── dynamic_holidays.py     # Dynamic holiday algorithms (e.g., Easter)
-│     ├── helpers.py              # Shared utility functions
-│     ├── holidays_flags.py       # Country / religion flag resolver
-│     ├── timer_engine.py         # Async timer scheduler engine
-│     └── timers.py               # Timer object model
+├── core/                      # Core engine & infrastructure
+│   ├── admin.py
+│   ├── countdown.py
+│   ├── timers.py
+│   ├── models.py
+│   ├── parser.py
+│   ├── formatter.py
+│   ├── dynamic_holidays.py
+│   ├── helpers.py
+│   └── settings.py
 │
-├── daily/                        # Scheduled automated tasks
-│     ├── banlu/
-│     │     └── banlu_daily.py    # Ban'Lu daily post at 10:00 GMT+3
-│     └── holidays/
-│           └── holidays_daily.py # Holiday broadcast at 10:01 GMT+3
+├── services/                  # Application services
+│   ├── quotes_service.py
+│   ├── banlu_service.py
+│   ├── holidays_service.py
+│   ├── holidays_format.py
+│   └── holidays_flags.py
+│   └── timer_service.py
 │
-├── data/                         # All bot content/data
-│     ├── holidays/               # JSON holiday definitions
-│     │     ├── Desember.json
-│     │     └── ...
-│     │
-│     ├── murloc_starts.txt       # Murloc AI generator sources
-│     ├── murloc_middles.txt
-│     ├── murloc_endings.txt
-│     ├── quotersbanlu.txt        # Daily Ban’Lu wisdom quotes
-│     └── quotes.txt              # General game quotes
+├── daily/                     # Scheduled jobs
+│   ├── banlu/
+│   │   └── banlu_daily.py
+│   └── holidays/
+│       └── holidays_daily.py
 │
-├── Dockerfile                    # Multi-stage optimized build
-├── fly.toml                      # Fly.io Machines configuration
-├── requirements.txt              # Dependencies
-├── README.md                     # Documentation
-└── Murloc-Fulltime-Logo.gif      # Branding asset
+├── data/                      # Content & datasets
+│   ├── holidays/              # Holiday JSON files
+│   ├── quotes.txt
+│   ├── quotersbanlu.txt
+│   ├── murloc_starts.txt
+│   ├── murloc_middles.txt
+│   └── murloc_endings.txt
+│
+├── Dockerfile
+├── fly.toml
+├── requirements.txt
+├── README.md
+└── Murloc-Fulltime-Logo.gif
 ```
 
 ---
 
-# 🎮 Commands
+## 🎮 Commands
 
-## 🗨️ Quotes
+### 💬 Quotes
+
 ```
-!quote          — random game quote  
-!murloc_ai      — generate Murloc wisdom
+/quote        — random quote
+/murloc_ai    — Murloc wisdom 🐸
 ```
 
-## ⏱ Simple Timer
-```
-!timer 10m text
-```
-Supports: `10s`, `5m`, `1h`, `1h20m`, `90`
+---
 
-## 📅 Date Timer
+### ⏱ Simple Timer
+
 ```
-!timerdate DD.MM.YYYY HH:MM +TZ text --pin
+/timer 10m
+/timer 1h30m Boss pull
+```
+
+Supported units: `s`, `m`, `h`, `d`
+Plain numbers are interpreted as **minutes**.
+
+---
+
+### 📅 Date Timer
+
+```
+/timerdate DD.MM.YYYY HH:MM [+TZ] [text]
 ```
 
 Example:
-```
-!timerdate 31.12.2025 23:59 +3 New Year! --pin
-```
 
-## 🔧 Timer Management
 ```
-!timers          — list active timers  
-!cancel <ID>     — cancel one timer  
-!cancelall       — clear all timers in the channel
+/timerdate 31.12.2025 23:59 +3 Happy New Year 🎆
 ```
 
 ---
 
-# 🎉 Holidays System
+### 🧹 Timer Management (Admin)
 
-## Lookup Command
 ```
-!holidays
-```
-
-## Features
-- Loads all holidays from `data/holidays/*.json`  
-- Static (`"12-01"`) and dynamic holidays supported  
-- Automatic flag resolution  
-- Finds the **nearest upcoming** holiday  
-- Supports **multiple holidays** per date  
-
-Example output:
-```
-🎉 Next Holiday
-🇺🇸 Independence Day
-📅 Date: 07-04
+/cancel        — cancel specific timer
+/cancelall     — cancel all timers in chat
 ```
 
 ---
 
-# 🔁 Daily Scheduled Tasks (Correct Times)
+### 🎉 Holidays
 
-The bot includes **two independent daily jobs**:
+```
+/holidays      — show upcoming holidays
+```
 
-### **🕙 Ban’Lu Daily Quote — 10:00 GMT+3**
-Posts one inspirational Ban’Lu quote to the configured channel.  
-Source: `data/quotersbanlu.txt`
+Displays:
 
----
-
-### **🕙 Holiday Broadcast — 10:01 GMT+3**
-Checks all holiday JSON files and posts every holiday matching today's date.  
-Source folder: `data/holidays/`
-
-**Offline fallback:**  
-If the bot was offline at 10:01, the broadcast executes once at startup.
+* one holiday per source
+* country flags
+* category emojis
 
 ---
 
-# 🔐 Environment Variables
+## 🔁 Daily Scheduled Jobs
 
-| Variable                | Description                               |
-|------------------------|---------------------------------------------|
-| `telegram_BOT_TOKEN`    | telegram bot token                           |
-| `BANLU_CHANNEL_ID`     | Channel ID for Ban’Lu daily quote           |
-| `HOLIDAYS_CHANNEL_IDS` | Comma-separated list of broadcast channels  |
+### 🕙 Ban’Lu Daily Quote — **10:00 MSK**
+
+* Source: `data/quotersbanlu.txt`
+* Posts one quote to the configured channel
+
+### 🕙 Holidays Broadcast — **10:01 MSK**
+
+* Checks all static & dynamic holidays
+* Posts today’s holidays
+* Executes once on startup if missed
+
+---
+
+## 🔐 Environment Variables
+
+| Variable               | Description                      |
+| ---------------------- | -------------------------------- |
+| `TELEGRAM_BOT_TOKEN`   | Telegram bot token               |
+| `BANLU_CHANNEL_ID`     | Channel ID for Ban’Lu daily post |
+| `HOLIDAYS_CHANNEL_IDS` | Comma-separated channel IDs      |
 
 Example:
+
 ```sh
-fly secrets set telegram_BOT_TOKEN=...
+fly secrets set TELEGRAM_BOT_TOKEN=xxx
 ```
 
 ---
 
-# 🐳 Deployment (Fly.io Machines)
+## 🐳 Deployment (Fly.io)
 
-## Deploy
 ```sh
 fly deploy
-```
-
-## View logs
-```sh
 fly logs
 ```
 
-## Set secrets
-```sh
-fly secrets set telegram_BOT_TOKEN=...
-```
+* multi-stage Docker build
+* non-root user
+* minimal runtime footprint
 
 ---
 
-# 🧩 Architecture Notes
+## 🏁 Final Notes
 
-- Fully async design (asyncio-native)  
-- Minimal shared state — loose coupling via module-bound injections  
-- Predictable startup/shutdown lifecycle  
-- Optimized Docker image (~40 MB)  
-- Runs as a non-root user  
-- Clean structured logging  
-- Production-ready CI/CD pipeline  
-
----
+This project is intentionally **over-engineered for its feature set** —
+because it serves as a **reference architecture** for future bots.
 
 <p align="center">
-  <b>Murloc Edition 🐸 Mrrglglglgl!</b>
+  <b>Murloc Edition 🐸 — Mrrglglglgl!</b>
 </p>

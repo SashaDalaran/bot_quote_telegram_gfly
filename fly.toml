@@ -1,24 +1,94 @@
-# fly.toml app configuration file generated for bot-quote-telegram-gfly on 2025-12-13T18:51:29+04:00
+# ==================================================
+# fly.toml — Fly.io Application Configuration
+# ==================================================
 #
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+# This file defines how the Telegram bot is built,
+# deployed and executed on Fly.io infrastructure.
 #
+# Responsibilities:
+# - Define application name and primary region
+# - Configure Docker-based build
+# - Control deployment strategy
+# - Declare runtime environment variables
+# - Define VM resources (CPU / memory)
+#
+# IMPORTANT:
+# - Secrets (like TELEGRAM_BOT_TOKEN) MUST be stored
+#   using Fly.io secrets, not hardcoded here.
+# - This file should remain environment-agnostic.
+#
+# ==================================================
+
+# ==================================================
+# Application identity
+# ==================================================
 
 app = 'bot-quote-telegram-gfly'
+
+# Primary deployment region.
+# AMS (Amsterdam) provides good latency for EU users.
 primary_region = 'ams'
+
+# ==================================================
+# Build configuration
+# ==================================================
+#
+# The application is built using a Dockerfile.
+#
 
 [build]
   dockerfile = 'Dockerfile'
+
+# ==================================================
+# Deployment strategy
+# ==================================================
+#
+# immediate:
+# - New version replaces the old one instantly
+# - Suitable for single-instance bots
+#
+# max_unavailable = 1.0
+# - Allows the single VM to restart during deploy
+#
 
 [deploy]
   strategy = 'immediate'
   max_unavailable = 1.0
 
+# ==================================================
+# Runtime environment variables
+# ==================================================
+#
+# PYTHONUNBUFFERED
+# - Forces Python to flush output immediately
+# - Required for real-time logs in Fly.io
+#
+# TELEGRAM_BOT_TOKEN
+# - Injected from Fly.io secrets
+# - NEVER store the token directly in this file
+#
+
 [env]
   PYTHONUNBUFFERED = '1'
   TELEGRAM_BOT_TOKEN = '${TELEGRAM_BOT_TOKEN}'
 
+# ==================================================
+# Virtual machine configuration
+# ==================================================
+#
+# Single lightweight VM is enough for:
+# - polling-based Telegram bot
+# - scheduled background jobs
+#
+# memory = 512mb
+# - More than sufficient for current workload
+#
+# cpu_kind = shared
+# - Cost-effective shared CPU
+#
+
 [[vm]]
-  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
+  memory = '512mb'
   memory_mb = 512

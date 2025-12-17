@@ -1,1 +1,29 @@
+# ==================================================
+# requirements.txt — Python Dependencies
+# ==================================================
+#
+# This file defines all external Python dependencies
+# required to run the Telegram bot.
+#
+# IMPORTANT:
+# - Keep this file minimal.
+# - Pin exact versions to ensure reproducible builds
+#   (especially important for Docker and Fly.io).
+# - All dependencies must be compatible with Python 3.11.
+#
+# ==================================================
+
+# ==================================================
+# Telegram Bot Framework
+# ==================================================
+#
+# python-telegram-bot
+# - Core framework used to build the Telegram bot
+# - Provides ApplicationBuilder, handlers, filters
+# - Includes built-in JobQueue for scheduled tasks
+#
+# Extra: [job-queue]
+# - Enables APScheduler-based background jobs
+#   (used for daily Banlu and Holidays messages)
+#
 python-telegram-bot[job-queue]==21.7

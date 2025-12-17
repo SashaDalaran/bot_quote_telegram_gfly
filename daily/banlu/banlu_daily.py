@@ -52,15 +52,3 @@ def setup_banlu_daily(application: Application):
         when=5,  # через 5 секунд после запуска
         name="banlu_catch_up",
     )
-async def send_banlu_daily(context: ContextTypes.DEFAULT_TYPE):
-    print("BANLU_CHANNEL_ID =", BANLU_CHANNEL_ID)
-
-    quotes = context.bot_data.get("banlu_quotes", [])
-    print("BANLU_QUOTES COUNT =", len(quotes))
-
-    quote = get_random_banlu_quote(quotes)
-    print("BANLU_QUOTE =", quote)
-
-    if not quote or not BANLU_CHANNEL_ID:
-        print("❌ BanLu skipped")
-        return

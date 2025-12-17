@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from services.holidays_service import load_all_holidays
-from core.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
+from services.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
 
 
 def format_holiday(h: dict) -> str:

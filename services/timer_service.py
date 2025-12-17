@@ -34,7 +34,6 @@ from core.formatter import (
     format_remaining_time,
     pretty_time_short,
 )
-
 from core.countdown import countdown_tick
 from services.quotes_service import get_random_quote
 
@@ -55,7 +54,6 @@ PINNED_BY_BOT: Dict[int, List[int]] = {}
 def _remember_pin(chat_id: int, message_id: int) -> None:
     """Track messages pinned by the bot itself."""
     PINNED_BY_BOT.setdefault(chat_id, []).append(message_id)
-
 
 # ==================================================
 # Public API — One-time timers
@@ -91,7 +89,7 @@ async def create_timer(
     # Parse target time
     # --------------------------------------------------
     try:
-        # Absolute datetime format
+        # Absolute datetime
         if len(args) >= 2 and "." in args[0] and ":" in args[1]:
             target_time_utc, msg_start, _ = parse_datetime_with_tz(args)
             remaining = int((target_time_utc - now_utc).total_seconds())
@@ -100,7 +98,7 @@ async def create_timer(
                 return
             message = " ".join(args[msg_start:]).strip()
 
-        # Relative duration format
+        # Relative duration
         else:
             duration = parse_duration(args[0])
             target_time_utc = now_utc + timedelta(seconds=duration)
@@ -115,7 +113,7 @@ async def create_timer(
     quote = get_random_quote(quotes)
 
     # --------------------------------------------------
-    # Build timer text (editable)
+    # Build editable timer message
     # --------------------------------------------------
     lines = [f"⏰ Time left: {format_remaining_time(remaining)}"]
 
@@ -131,7 +129,7 @@ async def create_timer(
     # --------------------------------------------------
     pin_msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=f"📌 Timer started: {pretty_time_short(remaining)}"
+        text=f"📌 Timer started: {pretty_time_short(remaining)}",
     )
 
     await context.bot.pin_chat_message(
@@ -142,12 +140,18 @@ async def create_timer(
 
     _remember_pin(chat_id, pin_msg.message_id)
 
+    logger.info(
+        "Pinned timer message %s in chat %s",
+        pin_msg.message_id,
+        chat_id,
+    )
+
     # --------------------------------------------------
     # TIMER MESSAGE (EDITABLE)
     # --------------------------------------------------
     timer_msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=timer_text
+        text=timer_text,
     )
 
     # --------------------------------------------------
@@ -156,7 +160,7 @@ async def create_timer(
     entry = TimerEntry(
         chat_id=chat_id,
         target_time=target_time_utc,
-        message_id=timer_msg.message_id,  # <-- НЕ PIN
+        message_id=timer_msg.message_id,  # editable message
         message=message,
     )
 

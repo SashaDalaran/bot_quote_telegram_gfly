@@ -1,326 +1,86 @@
 # ==================================================
-# services/timer_service.py — Timer Application Service
-# ==================================================
-#
-# This module implements the application-level logic
-# for one-time and repeating timers.
-#
-# Responsibilities:
-# - Parse user input (duration or absolute datetime)
-# - Create and store timer models
-# - Schedule JobQueue tasks
-# - Manage in-memory timer state
-# - Handle cancel / list / cleanup operations
-#
-# IMPORTANT:
-# - This is NOT a core module
-# - This is NOT a pure domain service
-# - This file orchestrates:
-#     core + services + Telegram API
-#
+# core/countdown.py — Countdown Job Logic
 # ==================================================
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from datetime import datetime, timezone
 
-from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry, RepeatEntry
-from core.parser import parse_duration, parse_datetime_with_tz
 from core.formatter import (
     choose_update_interval,
     format_remaining_time,
-    pretty_time_short,
 )
-from core.countdown import countdown_tick
-from services.quotes_service import get_random_quote
 
 logger = logging.getLogger(__name__)
 
-# ==================================================
-# In-memory state (process-local)
-# ==================================================
-
-TIMERS: Dict[int, List[TimerEntry]] = {}
-REPEATS: Dict[int, List[RepeatEntry]] = {}
-PINNED_BY_BOT: Dict[int, List[int]] = {}
-
-# ==================================================
-# Internal helpers
-# ==================================================
-
-def _remember_pin(chat_id: int, message_id: int) -> None:
-    """Track messages pinned by the bot itself."""
-    PINNED_BY_BOT.setdefault(chat_id, []).append(message_id)
-
-# ==================================================
-# Public API — One-time timers
-# ==================================================
-
-async def create_timer(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    quotes: List[str],
-) -> None:
+async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Create a one-time countdown timer.
-
-    Supported input formats:
-    - /timer 10m message
-    - /timer 25 message
-    - /timer 31.12.2025 23:59 UTC+3 message
+    Single countdown job tick.
+    Responsible ONLY for:
+    - calculating remaining time
+    - updating the timer message
+    - rescheduling itself
     """
 
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    args = context.args
-    if not args:
-        await msg.reply_text("Usage: /timer <time> [message]")
-        return
-
-    chat_id = update.effective_chat.id
-    now_utc = datetime.now(timezone.utc)
+    entry = context.job.data
+    now = datetime.now(timezone.utc)
+    remaining = int((entry.target_time - now).total_seconds())
 
     # --------------------------------------------------
-    # Parse target time
+    # Timer finished
+    # --------------------------------------------------
+    if remaining <= 0:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=entry.chat_id,
+                message_id=entry.message_id,
+                text="⏰ Time is up!",
+            )
+        except Exception as e:
+            logger.warning("Failed to finalize timer: %s", e)
+        return
+
+    # --------------------------------------------------
+    # Build new text
+    # --------------------------------------------------
+    new_text = f"⏰ Time left: {format_remaining_time(remaining)}"
+    if entry.message:
+        new_text += f"\n{entry.message}"
+
+    # --------------------------------------------------
+    # 🔥 CRITICAL FIX — do NOT edit same text
+    # --------------------------------------------------
+    if entry.last_text == new_text:
+        delay = choose_update_interval(remaining)
+        context.application.job_queue.run_once(
+            countdown_tick,
+            delay,
+            name=entry.job_name,
+            data=entry,
+        )
+        return
+
+    # --------------------------------------------------
+    # Edit message
     # --------------------------------------------------
     try:
-        # Absolute datetime
-        if len(args) >= 2 and "." in args[0] and ":" in args[1]:
-            target_time_utc, msg_start, _ = parse_datetime_with_tz(args)
-            remaining = int((target_time_utc - now_utc).total_seconds())
-            if remaining <= 0:
-                await msg.reply_text("Target time must be in the future.")
-                return
-            message = " ".join(args[msg_start:]).strip()
-
-        # Relative duration
-        else:
-            duration = parse_duration(args[0])
-            target_time_utc = now_utc + timedelta(seconds=duration)
-            remaining = duration
-            message = " ".join(args[1:]).strip()
-
-    except ValueError as e:
-        await msg.reply_text(f"Bad format: {e}")
-        return
-
-    message = message.strip('"') if message else None
-    quote = get_random_quote(quotes)
+        await context.bot.edit_message_text(
+            chat_id=entry.chat_id,
+            message_id=entry.message_id,
+            text=new_text,
+        )
+        entry.last_text = new_text
+    except Exception as e:
+        logger.warning("Failed to update timer: %s", e)
 
     # --------------------------------------------------
-    # Build editable timer message
+    # Schedule next tick
     # --------------------------------------------------
-    lines = [f"⏰ Time left: {format_remaining_time(remaining)}"]
-
-    if message:
-        lines.append(message)
-    if quote:
-        lines.append(f"💬 {quote}")
-
-    timer_text = "\n".join(lines)
-
-    # --------------------------------------------------
-    # PIN MESSAGE (STATIC)
-    # --------------------------------------------------
-    pin_msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text=f"📌 Timer started: {pretty_time_short(remaining)}",
-    )
-
-    await context.bot.pin_chat_message(
-        chat_id=chat_id,
-        message_id=pin_msg.message_id,
-        disable_notification=True,
-    )
-
-    _remember_pin(chat_id, pin_msg.message_id)
-
-    logger.info(
-        "Pinned timer message %s in chat %s",
-        pin_msg.message_id,
-        chat_id,
-    )
-
-    # --------------------------------------------------
-    # TIMER MESSAGE (EDITABLE)
-    # --------------------------------------------------
-    timer_msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text=timer_text,
-    )
-
-    # --------------------------------------------------
-    # Create model & schedule job
-    # --------------------------------------------------
-    entry = TimerEntry(
-        chat_id=chat_id,
-        target_time=target_time_utc,
-        message_id=timer_msg.message_id,  # editable message
-        message=message,
-    )
-
-    TIMERS.setdefault(chat_id, []).append(entry)
-
     delay = choose_update_interval(remaining)
-
     context.application.job_queue.run_once(
         countdown_tick,
         delay,
         name=entry.job_name,
         data=entry,
     )
-
-    await msg.reply_text(
-        f"⏰ Timer set for {pretty_time_short(remaining)}."
-    )
-
-# ==================================================
-# Public API — Cancel timers
-# ==================================================
-
-async def cancel_all_timers(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    chat_id = update.effective_chat.id
-    entries = TIMERS.get(chat_id)
-
-    if not entries:
-        await msg.reply_text("No timers to cancel.")
-        return
-
-    for entry in entries:
-        for job in context.application.job_queue.get_jobs_by_name(entry.job_name):
-            job.schedule_removal()
-
-    TIMERS.pop(chat_id, None)
-    await msg.reply_text("✅ All one-time timers cancelled.")
-
-# ==================================================
-# Public API — Repeating timers
-# ==================================================
-
-async def create_repeat(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    args = context.args
-    if not args:
-        await msg.reply_text("Usage: /repeat <time> [message]")
-        return
-
-    chat_id = update.effective_chat.id
-
-    try:
-        interval = parse_duration(args[0])
-    except ValueError as e:
-        await msg.reply_text(f"Bad format: {e}")
-        return
-
-    message = " ".join(args[1:]).strip() or None
-
-    entry = RepeatEntry(
-        chat_id=chat_id,
-        interval=interval,
-        message=message,
-    )
-
-    REPEATS.setdefault(chat_id, []).append(entry)
-
-    context.application.job_queue.run_repeating(
-        repeat_tick,
-        interval=interval,
-        first=interval,
-        name=entry.job_name,
-        data=entry,
-    )
-
-    await msg.reply_text(
-        f"🔁 Repeat timer set every {pretty_time_short(interval)}."
-    )
-
-async def cancel_all_repeats(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    chat_id = update.effective_chat.id
-    entries = REPEATS.get(chat_id)
-
-    if not entries:
-        await msg.reply_text("No repeat timers to cancel.")
-        return
-
-    for entry in entries:
-        for job in context.application.job_queue.get_jobs_by_name(entry.job_name):
-            job.schedule_removal()
-
-    REPEATS.pop(chat_id, None)
-    await msg.reply_text("✅ All repeat timers cancelled.")
-
-# ==================================================
-# Public API — Introspection & cleanup
-# ==================================================
-
-async def list_timers(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    chat_id = update.effective_chat.id
-
-    await msg.reply_text(
-        f"⏱ One-time timers: {len(TIMERS.get(chat_id, []))}\n"
-        f"🔁 Repeating timers: {len(REPEATS.get(chat_id, []))}"
-    )
-
-async def clear_pins(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    password: str,
-    expected_password: str,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    if not expected_password or password != expected_password:
-        await msg.reply_text("❌ Wrong password.")
-        return
-
-    chat_id = update.effective_chat.id
-    removed = 0
-
-    for mid in PINNED_BY_BOT.get(chat_id, []):
-        try:
-            await context.bot.unpin_chat_message(chat_id, mid)
-            removed += 1
-        except Exception as e:
-            logger.warning(
-                "Failed to unpin message %s in chat %s: %s",
-                mid,
-                chat_id,
-                e,
-            )
-
-    PINNED_BY_BOT[chat_id] = []
-    await msg.reply_text(f"✅ Removed {removed} pins in this chat.")

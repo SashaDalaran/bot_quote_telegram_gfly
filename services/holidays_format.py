@@ -1,29 +1,33 @@
-# ==================================================
-# services/holidays_format.py
-# ==================================================
-
 from typing import List, Dict
+from daily.holidays.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
 
 Holiday = Dict[str, object]
 
 
 def format_holidays_message(holidays: List[Holiday]) -> str:
-    """
-    Format holidays list into Telegram message
-    """
-    lines = ["🎉 *Праздники сегодня:*", ""]
+    lines = ["🎉 Today’s Holidays", ""]
 
     for h in holidays:
         name = h.get("name", "—")
-        categories = ", ".join(h.get("categories", []))
-        countries = ", ".join(h.get("countries", []))
+        categories = h.get("categories", [])
+        countries = h.get("countries", [])
 
-        line = f"• **{name}**"
-        if categories:
-            line += f" _( {categories} )_"
+        # --- страна / флаг ---
         if countries:
-            line += f"\n  🌍 {countries}"
+            country_key = countries[0]
+            flag = COUNTRY_FLAGS.get(country_key, "🌍")
+        else:
+            flag = "🌍"
 
-        lines.append(line)
+        # --- название праздника ---
+        lines.append(f"{flag} {name}")
 
-    return "\n".join(lines)
+        # --- категория ---
+        if categories:
+            category = categories[0]
+            emoji = CATEGORY_EMOJIS.get(category, "🔖")
+            lines.append(f"{emoji} {category}")
+
+        lines.append("")  # пустая строка между праздниками
+
+    return "\n".join(lines).strip()

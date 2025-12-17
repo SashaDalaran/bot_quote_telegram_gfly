@@ -71,9 +71,15 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             text=new_text,
         )
         entry.last_text = new_text
-    except Exception as e:
-        logger.warning("Failed to update timer: %s", e)
 
+    except Exception as e:
+        msg = str(e).lower()
+
+        # Telegram: message is not modified
+        if "message is not modified" in msg or "400" in msg:
+            logger.debug("Skipped edit (text unchanged)")
+        else:
+            logger.warning("Failed to update timer: %s", e)
     # --------------------------------------------------
     # Schedule next tick
     # --------------------------------------------------

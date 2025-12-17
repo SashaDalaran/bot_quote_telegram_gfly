@@ -27,9 +27,9 @@ from telegram.ext import ContextTypes
 #
 START_TEXT = (
     "🐸 <b>Just Quotes Bot</b>\n\n"
-    "Добро пожаловать!\n"
-    "Я бот с цитатами, таймерами и мурлокской мудростью.\n\n"
-    "📜 Используй /help чтобы увидеть все команды."
+    "Welcome!\n"
+    "I am a bot with quotes, timers, holidays and Murloc wisdom.\n\n"
+    "📜 Use /help to see all available commands."
 )
 
 # ==================================================

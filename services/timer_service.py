@@ -43,12 +43,6 @@ logger = logging.getLogger(__name__)
 # ==================================================
 # In-memory state (process-local)
 # ==================================================
-#
-# NOTE:
-# - This state lives only as long as the process runs
-# - It is sufficient for Fly.io single-instance bots
-# - If persistence is needed, this layer can be replaced
-#
 
 TIMERS: Dict[int, List[TimerEntry]] = {}
 REPEATS: Dict[int, List[RepeatEntry]] = {}
@@ -62,19 +56,6 @@ def _remember_pin(chat_id: int, message_id: int) -> None:
     """Track messages pinned by the bot itself."""
     PINNED_BY_BOT.setdefault(chat_id, []).append(message_id)
 
-
-def _remove_timer_entry(chat_id: int, pin_message_id: int) -> None:
-    """Remove a timer entry associated with a pinned message."""
-    if chat_id not in TIMERS:
-        return
-
-    TIMERS[chat_id] = [
-        t for t in TIMERS[chat_id]
-        if t.pin_message_id != pin_message_id
-    ]
-
-    if not TIMERS[chat_id]:
-        del TIMERS[chat_id]
 
 # ==================================================
 # Public API — One-time timers
@@ -134,7 +115,7 @@ async def create_timer(
     quote = get_random_quote(quotes)
 
     # --------------------------------------------------
-    # Build pinned message
+    # Build timer text (editable)
     # --------------------------------------------------
     lines = [f"⏰ Time left: {format_remaining_time(remaining)}"]
 
@@ -143,17 +124,31 @@ async def create_timer(
     if quote:
         lines.append(f"💬 {quote}")
 
-    pin_text = "\n".join(lines)
+    timer_text = "\n".join(lines)
 
-    sent = await context.bot.send_message(chat_id=chat_id, text=pin_text)
+    # --------------------------------------------------
+    # PIN MESSAGE (STATIC)
+    # --------------------------------------------------
+    pin_msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"📌 Timer started: {pretty_time_short(remaining)}"
+    )
 
     await context.bot.pin_chat_message(
         chat_id=chat_id,
-        message_id=sent.message_id,
+        message_id=pin_msg.message_id,
         disable_notification=True,
     )
 
-    _remember_pin(chat_id, sent.message_id)
+    _remember_pin(chat_id, pin_msg.message_id)
+
+    # --------------------------------------------------
+    # TIMER MESSAGE (EDITABLE)
+    # --------------------------------------------------
+    timer_msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=timer_text
+    )
 
     # --------------------------------------------------
     # Create model & schedule job
@@ -161,7 +156,7 @@ async def create_timer(
     entry = TimerEntry(
         chat_id=chat_id,
         target_time=target_time_utc,
-        message_id=sent.message_id,
+        message_id=timer_msg.message_id,  # <-- НЕ PIN
         message=message,
     )
 

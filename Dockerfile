@@ -3,96 +3,146 @@
 # ==================================================
 #
 # This Dockerfile builds a lightweight, production-ready
-# Docker image for the Telegram bot.
+# image for the Telegram bot.
 #
-# Key goals:
-# - Small image size
-# - Fast startup
+# Design goals:
+# - Minimal final image size
+# - Fast startup time
 # - Reproducible builds
-# - Secure runtime environment
+# - Secure, non-root runtime
 #
-# Python version: 3.11
-# Target platform: Fly.io (Linux)
+# Python version:
+# - 3.11
+#
+# Target platform:
+# - Linux (Fly.io Machines)
 #
 # ==================================================
 
+
 # ==================================================
-# Stage 1: Build dependencies
+# Stage 1 — Build Dependencies
 # ==================================================
 #
 # This stage installs all Python dependencies
-# into a temporary directory to keep the final
-# image clean and minimal.
+# into a temporary directory.
 #
-
+# Rationale:
+# - Keeps build tools out of the final image
+# - Reduces attack surface
+# - Allows aggressive cleanup in runtime stage
+#
 FROM python:3.11-slim AS builder
 
-# Disable .pyc files and enable unbuffered logs
+# --------------------------------------------------
+# Python runtime configuration
+# --------------------------------------------------
+#
+# PYTHONDONTWRITEBYTECODE:
+#   Prevent creation of .pyc files
+#
+# PYTHONUNBUFFERED:
+#   Ensures immediate log flushing
+#
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install build tools required for some Python packages
+# --------------------------------------------------
+# System build dependencies
+# --------------------------------------------------
+#
+# build-essential + gcc:
+#   Required for compiling native Python extensions
+#
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
+    build-essential gcc \
  && rm -rf /var/lib/apt/lists/*
 
-# Working directory for dependency installation
+# --------------------------------------------------
+# Application workspace
+# --------------------------------------------------
 WORKDIR /app
 
-# Copy only requirements first to leverage Docker layer caching
+# --------------------------------------------------
+# Dependency installation
+# --------------------------------------------------
+#
+# Copy only requirements.txt first to maximize
+# Docker layer caching.
+#
 COPY requirements.txt .
 
-# Install dependencies into a separate directory
-RUN pip install --upgrade pip setuptools wheel \
- && pip install --prefix=/install --no-cache-dir -r requirements.txt \
- && rm -rf /root/.cache/pip
+RUN pip install --upgrade pip \
+ && pip install --prefix=/install --no-cache-dir -r requirements.txt
+
 
 # ==================================================
-# Stage 2: Runtime image
+# Stage 2 — Runtime Image
 # ==================================================
 #
-# Final minimal image containing only:
+# Final production image containing ONLY:
 # - Python runtime
 # - Installed dependencies
 # - Application source code
 #
-
+# No compilers, no build tools, no package caches.
+#
 FROM python:3.11-slim
 
-# Runtime environment settings
+# --------------------------------------------------
+# Runtime environment configuration
+# --------------------------------------------------
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Optional micro-optimization:
-# Remove unused Python test files to reduce image size
-RUN rm -rf /usr/local/lib/python3.11/test \
- && rm -rf /usr/local/lib/python3.11/distutils/tests \
- && rm -rf /usr/local/lib/python3.11/unittest/test
+# --------------------------------------------------
+# Aggressive Python cleanup
+# --------------------------------------------------
+#
+# Remove unused standard library components
+# to minimize image size.
+#
+# This has NO impact on runtime behavior
+# of the application.
+#
+RUN rm -rf \
+    /usr/local/lib/python3.11/test \
+    /usr/local/lib/python3.11/distutils/tests \
+    /usr/local/lib/python3.11/unittest/test \
+    /usr/local/lib/python3.11/idlelib
 
-# Create a non-root user for security
+# --------------------------------------------------
+# Non-root runtime user
+# --------------------------------------------------
+#
+# Running as non-root is a production best practice.
+#
 RUN useradd -m bot
 
-# Set working directory
+# --------------------------------------------------
+# Application workspace
+# --------------------------------------------------
 WORKDIR /app
 
-# Copy installed dependencies from builder stage
+# --------------------------------------------------
+# Copy dependencies from build stage
+# --------------------------------------------------
 COPY --from=builder /install /usr/local
 
+# --------------------------------------------------
 # Copy application source code
-COPY . .
+# --------------------------------------------------
+COPY --chown=bot:bot . .
 
-# Set ownership to non-root user
-RUN chown -R bot:bot /app
-
+# --------------------------------------------------
 # Switch to non-root user
+# --------------------------------------------------
 USER bot
 
 # ==================================================
-# Application startup
+# Application entrypoint
 # ==================================================
 #
-# Start the Telegram bot using bot.py
+# Start the Telegram bot.
 #
-
 CMD ["python", "bot.py"]

@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from core.timers import create_timer
+from services.timer_service import create_timer
+
 
 async def timerdate_command(
     update: Update,

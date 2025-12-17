@@ -17,7 +17,7 @@
 # Responsibilities:
 # - Parse duration from user input
 # - Convert it into an absolute UTC timestamp
-# - Delegate timer creation to core.timers
+# - Delegate timer creation to timer application service
 #
 # IMPORTANT:
 # - This command supports ONLY relative durations
@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers import create_timer
+from services.timer_service import create_timer
 from core.parser import parse_duration
 
 # ==================================================

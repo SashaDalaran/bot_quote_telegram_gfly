@@ -1,5 +1,5 @@
 from typing import List, Dict
-from daily.holidays.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
+from services.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
 
 Holiday = Dict[str, object]
 

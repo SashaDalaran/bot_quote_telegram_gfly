@@ -23,7 +23,7 @@ from core.settings import (
 # ================== services ==================
 
 from services.quotes_service import load_quotes
-from services.banlu_service import load_banlu_quotes
+from services.banlu_service import load_quotersbanlu
 
 # ================== commands ==================
 
@@ -77,7 +77,7 @@ def main() -> None:
 
     # ---------- load data ----------
     quotes = load_quotes(QUOTES_FILE)
-    banlu_quotes = load_banlu_quotes(BANLU_QUOTES_FILE)
+    banlu_quotes = load_quotersbanlu(BANLU_QUOTES_FILE)
 
     # ---------- app ----------
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
@@ -86,7 +86,7 @@ def main() -> None:
     app.bot_data.setdefault("banlu_last_sent", None)
     app.bot_data.setdefault("holidays_last_sent", None)
     app.bot_data["quotes"] = quotes
-    app.bot_data["banlu_quotes"] = banlu_quotes
+    app.bot_data["quotersbanlu"] = banlu_quotes
 
     # ---------- filters ----------
     private_and_groups = filters.ChatType.PRIVATE | filters.ChatType.GROUPS

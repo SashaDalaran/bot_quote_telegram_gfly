@@ -14,7 +14,7 @@ if not TELEGRAM_BOT_TOKEN:
 # ============================
 
 QUOTES_FILE = os.getenv("QUOTES_FILE", "data/quotes.txt")
-BANLU_QUOTES_FILE = "data/quotes_banlu.txt"
+BANLU_QUOTES_FILE = "data/quotersbanlu.txt"
 
 # ============================
 # External links

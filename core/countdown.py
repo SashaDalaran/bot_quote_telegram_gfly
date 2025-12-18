@@ -1,10 +1,27 @@
+# ==================================================
+# core/countdown.py — Adaptive Countdown Logic
+# ==================================================
+
 import logging
 from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
-from core.formatter import format_remaining_time, choose_update_interval
+from core.formatter import format_remaining_time
 
 logger = logging.getLogger(__name__)
+
+
+def next_delay(remaining: int) -> int:
+    """
+    Adaptive update interval based on remaining time.
+    """
+    if remaining <= 30:
+        return 1
+    if remaining <= 60:
+        return 5
+    if remaining <= 300:
+        return 10
+    return 30
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -12,7 +29,9 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     now = datetime.now(timezone.utc)
     remaining = int((entry.target_time - now).total_seconds())
 
-    # ---------------- FINISH ----------------
+    # ==================================================
+    # FINISH
+    # ==================================================
     if remaining <= 0:
         try:
             await context.bot.edit_message_text(
@@ -24,14 +43,18 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("Finalize failed: %s", e)
         return
 
-    # ---------------- TEXT ----------------
+    # ==================================================
+    # BUILD TEXT
+    # ==================================================
     new_text = f"⏰ Time left: {format_remaining_time(remaining)}"
     if entry.message:
         new_text += f"\n{entry.message}"
 
-    # ❗ не обновляем тот же текст
+    # ==================================================
+    # SKIP SAME TEXT
+    # ==================================================
     if entry.last_text == new_text:
-        delay = choose_update_interval(remaining)
+        delay = next_delay(remaining)
         context.application.job_queue.run_once(
             countdown_tick,
             delay,
@@ -40,7 +63,9 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    # ---------------- EDIT ----------------
+    # ==================================================
+    # EDIT MESSAGE
+    # ==================================================
     try:
         await context.bot.edit_message_text(
             chat_id=entry.chat_id,
@@ -51,7 +76,9 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.warning("Update failed: %s", e)
 
-    # ---------------- PIN (один раз) ----------------
+    # ==================================================
+    # PIN (ONCE)
+    # ==================================================
     if entry.pin and entry.pinned_message_id is None:
         try:
             await context.bot.pin_chat_message(
@@ -63,8 +90,10 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.warning("Pin failed: %s", e)
 
-    # ---------------- NEXT ----------------
-    delay = choose_update_interval(remaining)
+    # ==================================================
+    # NEXT TICK
+    # ==================================================
+    delay = next_delay(remaining)
     context.application.job_queue.run_once(
         countdown_tick,
         delay,

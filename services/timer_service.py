@@ -124,7 +124,8 @@ async def create_timer(
 
     TIMERS.setdefault(chat_id, []).append(entry)
 
-    delay = choose_update_interval(remaining)
+    delay = min(1, choose_update_interval(remaining))
+
 
     context.application.job_queue.run_once(
         countdown_tick,

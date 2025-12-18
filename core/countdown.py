@@ -29,7 +29,6 @@ def next_delay(remaining: int) -> int:
     return 60
 
 
-
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     entry = context.job.data
     now = datetime.now(timezone.utc)
@@ -81,20 +80,6 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         entry.last_text = new_text
     except Exception as e:
         logger.warning("Update failed: %s", e)
-
-    # ==================================================
-    # PIN (ONCE)
-    # ==================================================
-    if entry.pin and entry.pinned_message_id is None:
-        try:
-            await context.bot.pin_chat_message(
-                chat_id=entry.chat_id,
-                message_id=entry.message_id,
-                disable_notification=True,
-            )
-            entry.pinned_message_id = entry.message_id
-        except Exception as e:
-            logger.warning("Pin failed: %s", e)
 
     # ==================================================
     # NEXT TICK

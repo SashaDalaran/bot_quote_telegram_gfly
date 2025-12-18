@@ -1,61 +1,65 @@
 # ==================================================
-# commands/date_timer.py — /timerdate command
+# core/timers.py
 # ==================================================
 
 from datetime import datetime, timezone
-
-from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.parser import parse_datetime_with_tz
-from core.timers import create_timer
+from core.models import TimerEntry
+from core.formatter import (
+    format_remaining_time,
+    choose_update_interval,
+)
+from core.countdown import countdown_tick
+
+TIMERS: dict[int, list[TimerEntry]] = {}
 
 
-async def timerdate_command(
-    update: Update,
+def create_timer(
+    *,
     context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    args = context.args
-    if not args:
-        await msg.reply_text(
-            "Usage:\n"
-            "/timerdate DD.MM.YYYY HH:MM +TZ text [--pin]"
-        )
-        return
-
-    try:
-        target_time, msg_start, _ = parse_datetime_with_tz(args)
-    except ValueError as e:
-        await msg.reply_text(f"❌ Bad format: {e}")
-        return
-
+    chat_id: int,
+    target_time: datetime,
+    text: str | None = None,
+    pin_message_id: int | None = None,
+):
     now = datetime.now(timezone.utc)
     remaining = int((target_time - now).total_seconds())
 
     if remaining <= 0:
-        await msg.reply_text("❌ Target time must be in the future.")
-        return
+        raise ValueError("Target time must be in the future")
 
-    # текст без флагов
-    message_parts = [
-        a for a in args[msg_start:]
-        if not a.startswith("--")
-    ]
-    message = " ".join(message_parts) if message_parts else None
+    async def _send():
+        timer_msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"⏰ Time left: {format_remaining_time(remaining)}"
+                + (f"\n{text}" if text else "")
+            ),
+        )
 
-    should_pin = "--pin" in args
-    chat_id = update.effective_chat.id
+        if pin_message_id:
+            await context.bot.pin_chat_message(
+                chat_id=chat_id,
+                message_id=timer_msg.message_id,
+                disable_notification=True,
+            )
 
-    create_timer(
-        context=context,
-        chat_id=chat_id,
-        target_time=target_time,
-        text=message,
-        pin=should_pin,
-    )
+        entry = TimerEntry(
+            chat_id=chat_id,
+            message_id=timer_msg.message_id,
+            target_time=target_time,
+            message=text,
+        )
 
-    await msg.reply_text("⏳ Date timer started.")
+        TIMERS.setdefault(chat_id, []).append(entry)
+
+        delay = choose_update_interval(remaining)
+        context.job_queue.run_once(
+            countdown_tick,
+            delay,
+            name=entry.job_name,
+            data=entry,
+        )
+
+    context.application.create_task(_send())

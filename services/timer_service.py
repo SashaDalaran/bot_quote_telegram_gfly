@@ -9,7 +9,7 @@ from typing import Dict, List
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry
+from core.models import TimerEntry, RepeatEntry
 from core.parser import parse_duration, parse_datetime_with_tz
 from core.formatter import (
     choose_update_interval,

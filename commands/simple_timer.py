@@ -27,10 +27,10 @@ async def timer_command(
 
     msg = await update.message.reply_text("⏳ Timer started...")
 
-    create_timer(
-        context=context,
-        chat_id=update.effective_chat.id,
-        target_time=target_time,
-        text=text,
-        pin_message_id=msg.message_id,
-    )
+create_timer(
+    context=context,
+    chat_id=chat_id,
+    target_time=target_time,
+    text=message,
+    pin="--pin" in context.args,
+)

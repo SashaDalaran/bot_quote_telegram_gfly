@@ -1,3 +1,7 @@
+# ==================================================
+# core/timers.py — low-level timer scheduler
+# ==================================================
+
 from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
@@ -17,7 +21,8 @@ def create_timer(
     chat_id: int,
     target_time: datetime,
     text: str | None = None,
-):
+    pin: bool = False,
+) -> None:
     now = datetime.now(timezone.utc)
     remaining = int((target_time - now).total_seconds())
 
@@ -27,14 +32,23 @@ def create_timer(
     async def _send():
         timer_msg = await context.bot.send_message(
             chat_id=chat_id,
-            text=f"⏰ Time left: {format_remaining_time(remaining)}\n{text or ''}".strip(),
+            text=f"⏰ Time left: {format_remaining_time(remaining)}"
+            + (f"\n{text}" if text else ""),
         )
+
+        if pin:
+            await context.bot.pin_chat_message(
+                chat_id=chat_id,
+                message_id=timer_msg.message_id,
+                disable_notification=True,
+            )
 
         entry = TimerEntry(
             chat_id=chat_id,
             message_id=timer_msg.message_id,
             target_time=target_time,
             message=text,
+            pin=pin,
         )
 
         TIMERS.setdefault(chat_id, []).append(entry)
@@ -43,8 +57,4 @@ def create_timer(
         context.job_queue.run_once(
             countdown_tick,
             delay,
-            name=entry.job_name,
-            data=entry,
-        )
-
-    context.application.create_task(_send())
+            name=

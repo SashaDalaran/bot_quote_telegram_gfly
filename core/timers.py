@@ -4,7 +4,6 @@ from telegram.ext import ContextTypes
 from core.models import TimerEntry
 from core.formatter import (
     format_remaining_time,
-    pretty_time_short,
     choose_update_interval,
 )
 from core.countdown import countdown_tick
@@ -18,7 +17,6 @@ def create_timer(
     chat_id: int,
     target_time: datetime,
     text: str | None = None,
-    pin_message_id: int | None = None,
 ):
     now = datetime.now(timezone.utc)
     remaining = int((target_time - now).total_seconds())
@@ -31,13 +29,6 @@ def create_timer(
             chat_id=chat_id,
             text=f"⏰ Time left: {format_remaining_time(remaining)}\n{text or ''}".strip(),
         )
-
-        if pin_message_id:
-            await context.bot.pin_chat_message(
-                chat_id=chat_id,
-                message_id=timer_msg.message_id,
-                disable_notification=True,
-            )
 
         entry = TimerEntry(
             chat_id=chat_id,

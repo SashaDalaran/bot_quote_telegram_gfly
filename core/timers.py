@@ -32,8 +32,10 @@ def create_timer(
     async def _send():
         timer_msg = await context.bot.send_message(
             chat_id=chat_id,
-            text=f"⏰ Time left: {format_remaining_time(remaining)}"
-            + (f"\n{text}" if text else ""),
+            text=(
+                f"⏰ Time left: {format_remaining_time(remaining)}"
+                + (f"\n{text}" if text else "")
+            ),
         )
 
         if pin:
@@ -54,7 +56,12 @@ def create_timer(
         TIMERS.setdefault(chat_id, []).append(entry)
 
         delay = choose_update_interval(remaining)
+
         context.job_queue.run_once(
             countdown_tick,
             delay,
-            name=
+            name=entry.job_name,
+            data=entry,
+        )
+
+    context.application.create_task(_send())

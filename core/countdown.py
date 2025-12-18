@@ -55,11 +55,12 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     if entry.message:
         new_text += f"\n{entry.message}"
 
+    delay = next_delay(remaining)
+
     # ==================================================
-    # SKIP SAME TEXT
+    # SKIP SAME TEXT (❗ только если > 60 секунд)
     # ==================================================
-    if entry.last_text == new_text:
-        delay = next_delay(remaining)
+    if remaining > 60 and entry.last_text == new_text:
         context.application.job_queue.run_once(
             countdown_tick,
             delay,
@@ -84,7 +85,6 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     # ==================================================
     # NEXT TICK
     # ==================================================
-    delay = next_delay(remaining)
     context.application.job_queue.run_once(
         countdown_tick,
         delay,

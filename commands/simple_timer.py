@@ -1,9 +1,8 @@
 # ==================================================
-# commands/simple_timer.py — /timer command
+# commands/simple_timer.py
 # ==================================================
 
 from datetime import datetime, timedelta, timezone
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -35,14 +34,11 @@ async def timer_command(
 
     target_time = now + timedelta(seconds=duration)
 
-    # текст таймера (без флагов)
     message_parts = [a for a in args[1:] if not a.startswith("--")]
     message = " ".join(message_parts) if message_parts else None
 
-    # pin ТОЛЬКО если есть флаг
     should_pin = "--pin" in args
 
-    # ✅ ВАЖНО: create_timer вызывается ВНУТРИ handler
     create_timer(
         context=context,
         chat_id=chat_id,

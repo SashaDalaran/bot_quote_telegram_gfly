@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
-from core.formatter import format_remaining_time, choose_update_interval
+from core.formatter import format_remaining_time
 from core.countdown import countdown_tick
 
 TIMERS: dict[int, list[TimerEntry]] = {}
@@ -48,10 +48,10 @@ def create_timer(
 
         TIMERS.setdefault(chat_id, []).append(entry)
 
-        delay = choose_update_interval(remaining)
+        # ❗ ВСЕГДА первый тик через 1 секунду
         context.job_queue.run_once(
             countdown_tick,
-            delay,
+            1,
             name=entry.job_name,
             data=entry,
         )

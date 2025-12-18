@@ -5,26 +5,25 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers import TIMERS
+from core.timers import get_timers, clear_timers
 
 
+# /cancel — отменить таймеры в текущем чате
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    timers = get_timers(chat_id)
 
-    jobs = context.application.job_queue.jobs()
-    timer_jobs = [job for job in jobs if job.name.startswith("timer_")]
-
-    if not timer_jobs:
-        await update.message.reply_text("❌ No timers to cancel.")
+    if not timers:
+        await update.message.reply_text("No timers to cancel.")
         return
 
-    # ---------- remove jobs ----------
-    for job in timer_jobs:
-        job.schedule_removal()
+    # удаляем jobs из job_queue
+    for entry in timers:
+        for job in context.job_queue.jobs():
+            if job.name == entry.job_name:
+                job.schedule_removal()
 
-    # ---------- unpin + cleanup ----------
-    entries = TIMERS.pop(chat_id, [])
-    for entry in entries:
+        # пробуем убрать закреп
         try:
             await context.bot.unpin_chat_message(
                 chat_id=chat_id,
@@ -33,6 +32,10 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
 
-    await update.message.reply_text(
-        f"🛑 Cancelled {len(timer_jobs)} timer(s)."
-    )
+    clear_timers(chat_id)
+    await update.message.reply_text("⛔ Timer cancelled.")
+
+
+# /cancel_all — алиас (на будущее / если используешь)
+async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await cancel_command(update, context)

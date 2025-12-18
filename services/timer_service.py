@@ -52,7 +52,7 @@ async def create_timer(
 
     args = context.args
     if not args:
-        await msg.reply_text("Usage: /timer <time> [message]")
+        await msg.reply_text("Usage: /timer <time> [message] [--pin]")
         return
 
     chat_id = update.effective_chat.id
@@ -83,7 +83,7 @@ async def create_timer(
     quote = get_random_quote(quotes)
 
     # --------------------------------------------------
-    # Build timer text (THIS MESSAGE WILL BE PINNED + EDITED)
+    # Build timer text
     # --------------------------------------------------
     lines = [f"⏰ Time left: {format_remaining_time(remaining)}"]
 
@@ -100,15 +100,17 @@ async def create_timer(
     )
 
     # --------------------------------------------------
-    # Pin message
+    # Pin message ONLY if requested
     # --------------------------------------------------
-    await context.bot.pin_chat_message(
-        chat_id=chat_id,
-        message_id=timer_msg.message_id,
-        disable_notification=True,
-    )
+    should_pin = "--pin" in context.args
 
-    _remember_pin(chat_id, timer_msg.message_id)
+    if should_pin:
+        await context.bot.pin_chat_message(
+            chat_id=chat_id,
+            message_id=timer_msg.message_id,
+            disable_notification=True,
+        )
+        _remember_pin(chat_id, timer_msg.message_id)
 
     # --------------------------------------------------
     # Create model & schedule job
@@ -118,24 +120,21 @@ async def create_timer(
         message_id=timer_msg.message_id,
         target_time=target_time_utc,
         message=message,
-        pin="--pin" in context.args,  # ← ВАЖНО
+        pin=should_pin,
     )
-
 
     TIMERS.setdefault(chat_id, []).append(entry)
 
-    delay = min(1, choose_update_interval(remaining))
-
-
+    # первый тик всегда через 1 секунду
     context.application.job_queue.run_once(
         countdown_tick,
-        delay,
+        1,
         name=entry.job_name,
         data=entry,
     )
 
     await msg.reply_text(
-        f"📌 Timer started: {pretty_time_short(remaining)}"
+        f"⏱ Timer started: {pretty_time_short(remaining)}"
     )
 
 # ==================================================
@@ -165,54 +164,7 @@ async def cancel_all_timers(
     await msg.reply_text("✅ All one-time timers cancelled.")
 
 # ==================================================
-# Public API — Repeating timers (оставляем как есть)
-# ==================================================
-
-async def create_repeat(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    args = context.args
-    if not args:
-        await msg.reply_text("Usage: /repeat <time> [message]")
-        return
-
-    chat_id = update.effective_chat.id
-
-    try:
-        interval = parse_duration(args[0])
-    except ValueError as e:
-        await msg.reply_text(f"Bad format: {e}")
-        return
-
-    message = " ".join(args[1:]).strip() or None
-
-    entry = RepeatEntry(
-        chat_id=chat_id,
-        interval=interval,
-        message=message,
-    )
-
-    REPEATS.setdefault(chat_id, []).append(entry)
-
-    context.application.job_queue.run_repeating(
-        repeat_tick,
-        interval=interval,
-        first=interval,
-        name=entry.job_name,
-        data=entry,
-    )
-
-    await msg.reply_text(
-        f"🔁 Repeat timer set every {pretty_time_short(interval)}."
-    )
-
-# ==================================================
-# Public API — Cleanup
+# Public API — Cleanup pins
 # ==================================================
 
 async def clear_pins(

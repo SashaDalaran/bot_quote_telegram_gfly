@@ -14,14 +14,20 @@ logger = logging.getLogger(__name__)
 def next_delay(remaining: int) -> int:
     """
     Adaptive update interval based on remaining time.
+
+    <= 1 minute      -> every 1 second
+    1–10 minutes     -> every 5 seconds
+    10–60 minutes    -> every 15 seconds
+    >= 1 hour        -> every 60 seconds
     """
-    if remaining <= 30:
-        return 1
     if remaining <= 60:
+        return 1
+    if remaining <= 10 * 60:
         return 5
-    if remaining <= 300:
-        return 10
-    return 30
+    if remaining <= 60 * 60:
+        return 15
+    return 60
+
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:

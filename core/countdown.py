@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 def next_delay(remaining: int) -> int:
     """
-    Adaptive update interval based on remaining time.
-
     <= 1 minute      -> every 1 second
     1–10 minutes     -> every 5 seconds
     10–60 minutes    -> every 15 seconds
@@ -34,9 +32,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     now = datetime.now(timezone.utc)
     remaining = int((entry.target_time - now).total_seconds())
 
-    # ==================================================
-    # FINISH
-    # ==================================================
+    # ================= FINISH =================
     if remaining <= 0:
         try:
             await context.bot.edit_message_text(
@@ -48,18 +44,15 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("Finalize failed: %s", e)
         return
 
-    # ==================================================
-    # BUILD TEXT
-    # ==================================================
+    # ================= TEXT =================
     new_text = f"⏰ Time left: {format_remaining_time(remaining)}"
     if entry.message:
         new_text += f"\n{entry.message}"
 
     delay = next_delay(remaining)
 
-    # ==================================================
-    # SKIP SAME TEXT (❗ только если > 60 секунд)
-    # ==================================================
+    # ================= SKIP SAME TEXT =================
+    # ❗ экономим апдейты, но НЕ в последние 60 секунд
     if remaining > 60 and entry.last_text == new_text:
         context.application.job_queue.run_once(
             countdown_tick,
@@ -69,9 +62,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    # ==================================================
-    # EDIT MESSAGE
-    # ==================================================
+    # ================= UPDATE =================
     try:
         await context.bot.edit_message_text(
             chat_id=entry.chat_id,
@@ -82,9 +73,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.warning("Update failed: %s", e)
 
-    # ==================================================
-    # NEXT TICK
-    # ==================================================
+    # ================= NEXT =================
     context.application.job_queue.run_once(
         countdown_tick,
         delay,

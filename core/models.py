@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 import uuid
 
 
@@ -15,7 +16,12 @@ class TimerEntry:
     chat_id: int
     message_id: int
     target_time: datetime
-    message: str | None = None
+    message: Optional[str] = None
+
+    pin: bool = False
+    pinned_message_id: Optional[int] = None
+
+    last_text: Optional[str] = None
     job_name: str = ""
 
     def __post_init__(self):
@@ -24,14 +30,13 @@ class TimerEntry:
 
 
 # --------------------------------------------------
-# Repeating timer (used by timer_service)
+# Repeat timer (ЗАГЛУШКА, чтобы сервис не падал)
 # --------------------------------------------------
 @dataclass
 class RepeatEntry:
     chat_id: int
-    message_id: int
-    interval_seconds: int
-    message: str | None = None
+    interval: int
+    message: Optional[str] = None
     job_name: str = ""
 
     def __post_init__(self):

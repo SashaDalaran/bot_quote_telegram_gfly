@@ -6,12 +6,13 @@ from core.formatter import format_remaining_time, choose_update_interval
 
 logger = logging.getLogger(__name__)
 
+
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     entry = context.job.data
     now = datetime.now(timezone.utc)
     remaining = int((entry.target_time - now).total_seconds())
 
-    # ---- FINISH ----
+    # ---------------- FINISH ----------------
     if remaining <= 0:
         try:
             await context.bot.edit_message_text(
@@ -23,15 +24,15 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("Finalize failed: %s", e)
         return
 
-    # ---- BUILD TEXT ----
+    # ---------------- TEXT ----------------
     new_text = f"⏰ Time left: {format_remaining_time(remaining)}"
     if entry.message:
         new_text += f"\n{entry.message}"
 
-    # ❗ НЕ РЕДАКТИРУЕМ ТО ЖЕ САМОЕ
+    # ❗ не обновляем тот же текст
     if entry.last_text == new_text:
         delay = choose_update_interval(remaining)
-        context.job_queue.run_once(
+        context.application.job_queue.run_once(
             countdown_tick,
             delay,
             name=entry.job_name,
@@ -39,7 +40,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    # ---- EDIT ----
+    # ---------------- EDIT ----------------
     try:
         await context.bot.edit_message_text(
             chat_id=entry.chat_id,
@@ -50,9 +51,21 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.warning("Update failed: %s", e)
 
-    # ---- NEXT TICK ----
+    # ---------------- PIN (один раз) ----------------
+    if entry.pin and entry.pinned_message_id is None:
+        try:
+            await context.bot.pin_chat_message(
+                chat_id=entry.chat_id,
+                message_id=entry.message_id,
+                disable_notification=True,
+            )
+            entry.pinned_message_id = entry.message_id
+        except Exception as e:
+            logger.warning("Pin failed: %s", e)
+
+    # ---------------- NEXT ----------------
     delay = choose_update_interval(remaining)
-    context.job_queue.run_once(
+    context.application.job_queue.run_once(
         countdown_tick,
         delay,
         name=entry.job_name,

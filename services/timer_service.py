@@ -9,7 +9,7 @@ from typing import Dict, List
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.models import TimerEntry, RepeatEntry
+from core.models import TimerEntry
 from core.parser import parse_duration, parse_datetime_with_tz
 from core.formatter import (
     choose_update_interval,
@@ -115,10 +115,12 @@ async def create_timer(
     # --------------------------------------------------
     entry = TimerEntry(
         chat_id=chat_id,
-        target_time=target_time_utc,
         message_id=timer_msg.message_id,
+        target_time=target_time_utc,
         message=message,
+        pin="--pin" in context.args,  # ← ВАЖНО
     )
+
 
     TIMERS.setdefault(chat_id, []).append(entry)
 

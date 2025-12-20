@@ -2,21 +2,23 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers_store import get_timers, clear_timers
+from core.timers_store import clear_timers
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    timers = get_timers(chat_id)
+    cleared = clear_timers(chat_id)
 
-    if not timers:
-        await update.message.reply_text("⛔ Нет активных таймеров")
-        return
-
-    clear_timers(chat_id)
-    await update.message.reply_text(f"🗑 Отменено таймеров: {len(timers)}")
+    if cleared:
+        await update.message.reply_text("❌ Timer cancelled.")
+    else:
+        await update.message.reply_text("⚠️ No active timer.")
 
 
-# ✅ ДОБАВЛЯЕМ ЭТО
 async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await cancel_command(update, context)
+    chat_id = update.effective_chat.id
+    count = clear_timers(chat_id)
+
+    await update.message.reply_text(
+        f"🧹 Cleared {count} timer(s)." if count else "⚠️ No timers to clear."
+    )

@@ -14,18 +14,17 @@ def create_timer(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
-    message: str | None = None,
-) -> None:
+    text: str | None = None,
+):
     job_name = f"timer_{chat_id}_{int(target_time.timestamp())}"
 
     entry = TimerEntry(
         chat_id=chat_id,
         target_time=target_time,
-        message=message,
+        message=text,
         job_name=job_name,
     )
 
-    # ✅ регистрируем ОДИН раз
     register_timer(entry)
 
     context.job_queue.run_once(

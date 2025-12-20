@@ -1,32 +1,26 @@
 # core/timers_store.py
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 from core.models import TimerEntry
 
-# timer_id -> TimerEntry
-_TIMERS: Dict[str, TimerEntry] = {}
+# chat_id -> list of timers
+_TIMERS: Dict[int, List[TimerEntry]] = {}
 
 
 def register_timer(entry: TimerEntry) -> None:
-    _TIMERS[entry.job_name] = entry
+    _TIMERS.setdefault(entry.chat_id, []).append(entry)
 
 
-def get_timer(timer_id: str) -> Optional[TimerEntry]:
-    return _TIMERS.get(timer_id)
+def get_timers(chat_id: int) -> List[TimerEntry]:
+    return _TIMERS.get(chat_id, [])
 
 
-def get_timers_for_chat(chat_id: int) -> List[TimerEntry]:
-    return [t for t in _TIMERS.values() if t.chat_id == chat_id]
+def pop_last_timer(chat_id: int) -> TimerEntry | None:
+    timers = _TIMERS.get(chat_id)
+    if not timers:
+        return None
+    return timers.pop()
 
 
-def cancel_timer(timer_id: str) -> bool:
-    return _TIMERS.pop(timer_id, None) is not None
-
-
-def cancel_all_timers_for_chat(chat_id: int) -> int:
-    to_delete = [k for k, v in _TIMERS.items() if v.chat_id == chat_id]
-
-    for key in to_delete:
-        del _TIMERS[key]
-
-    return len(to_delete)
+def clear_timers(chat_id: int) -> List[TimerEntry]:
+    return _TIMERS.pop(chat_id, [])

@@ -1,11 +1,8 @@
 # commands/cancel.py
-
-from datetime import datetime, timezone
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers_store import get_timers, remove_timer, clear_timers
-from core.formatter import format_remaining_time
+from core.timers_store import get_timers, clear_timers
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -13,87 +10,11 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     timers = get_timers(chat_id)
 
     if not timers:
-        await update.message.reply_text("No timers to cancel.")
+        await update.message.reply_text("⛔ Нет активных таймеров")
         return
-
-    if len(timers) == 1:
-        await _cancel_entry(update, context, timers[0])
-        await update.message.reply_text("⛔ Timer cancelled.")
-        return
-
-    now = datetime.now(timezone.utc)
-    buttons = []
-
-    for entry in timers:
-        remaining = max(
-            0, int((entry.target_time - now).total_seconds())
-        )
-
-        buttons.append([
-            InlineKeyboardButton(
-                text=f"⏰ {format_remaining_time(remaining)}",
-                callback_data=f"cancel:{entry.job_name}",
-            )
-        ])
-
-    await update.message.reply_text(
-        "Which timer do you want to cancel?",
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-
-
-async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    _, job_name = query.data.split(":", 1)
-    chat_id = query.message.chat_id
-
-    for entry in get_timers(chat_id):
-        if entry.job_name == job_name:
-            await _cancel_entry(update, context, entry)
-            await query.edit_message_text("⛔ Timer cancelled.")
-            return
-
-    await query.edit_message_text("❌ Timer not found.")
-
-
-async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    timers = get_timers(chat_id)
-
-    if not timers:
-        await update.message.reply_text("No timers to cancel.")
-        return
-
-    for entry in timers:
-        for job in context.job_queue.jobs():
-            if job.name == entry.job_name:
-                job.schedule_removal()
-
-        try:
-            await context.bot.unpin_chat_message(
-                chat_id=chat_id,
-                message_id=entry.message_id,
-            )
-        except Exception:
-            pass
 
     clear_timers(chat_id)
-    await update.message.reply_text("⛔ All timers cancelled.")
 
-
-async def _cancel_entry(update: Update, context: ContextTypes.DEFAULT_TYPE, entry):
-    for job in context.job_queue.jobs():
-        if job.name == entry.job_name:
-            job.schedule_removal()
-
-    try:
-        await context.bot.unpin_chat_message(
-            chat_id=entry.chat_id,
-            message_id=entry.message_id,
-        )
-    except Exception:
-        pass
-
-    remove_timer(entry.job_name)
+    await update.message.reply_text(
+        f"🗑 Отменено таймеров: {len(timers)}"
+    )

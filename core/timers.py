@@ -1,56 +1,36 @@
 # core/timers.py
-
-from datetime import datetime, timezone
+import logging
+from datetime import datetime
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
-from core.formatter import format_remaining_time, choose_update_interval
 from core.timers_store import register_timer
 from core.countdown import countdown_tick
 
+logger = logging.getLogger(__name__)
+
 
 def create_timer(
-    *,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
-    text: str | None = None,
-    pin: bool = False,
-):
-    now = datetime.now(timezone.utc)
-    remaining = int((target_time - now).total_seconds())
+    message: str | None = None,
+) -> None:
+    job_name = f"timer_{chat_id}_{int(target_time.timestamp())}"
 
-    if remaining <= 0:
-        raise ValueError("Target time must be in the future")
+    entry = TimerEntry(
+        chat_id=chat_id,
+        target_time=target_time,
+        message=message,
+        job_name=job_name,
+    )
 
-    async def _send():
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"⏰ Time left: {format_remaining_time(remaining)}\n{text or ''}".strip(),
-        )
+    # ✅ регистрируем ОДИН раз
+    register_timer(entry)
 
-        if pin:
-            await context.bot.pin_chat_message(
-                chat_id=chat_id,
-                message_id=msg.message_id,
-                disable_notification=True,
-            )
-
-        entry = TimerEntry(
-            chat_id=chat_id,
-            message_id=msg.message_id,
-            target_time=target_time,
-            message=text,
-        )
-
-        register_timer(entry)
-
-        delay = choose_update_interval(remaining)
-        context.job_queue.run_once(
-            countdown_tick,
-            delay,
-            name=entry.job_name,
-            data=entry,
-        )
-
-    context.application.create_task(_send())
+    context.job_queue.run_once(
+        countdown_tick,
+        when=1,
+        data=entry,
+        name=job_name,
+    )

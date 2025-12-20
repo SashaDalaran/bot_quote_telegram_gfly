@@ -1,6 +1,4 @@
-# ==================================================
 # commands/simple_timer.py
-# ==================================================
 
 from datetime import datetime, timedelta, timezone
 from telegram import Update

@@ -1,10 +1,15 @@
+# services/timer_service.py
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers import get_timers, clear_timers
+from core.timers_store import get_timers, clear_timers
 
 
-async def cancel_all_timers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def cancel_all_timers(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
     chat_id = update.effective_chat.id
     timers = get_timers(chat_id)
 
@@ -13,12 +18,10 @@ async def cancel_all_timers(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     for entry in timers:
-        # ❌ удаляем job
         for job in context.job_queue.jobs():
             if job.name == entry.job_name:
                 job.schedule_removal()
 
-        # 📌 снимаем pin
         try:
             await context.bot.unpin_chat_message(
                 chat_id=chat_id,
@@ -28,5 +31,4 @@ async def cancel_all_timers(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             pass
 
     clear_timers(chat_id)
-
     await update.message.reply_text("⛔ All timers cancelled.")

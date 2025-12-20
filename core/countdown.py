@@ -1,8 +1,10 @@
+# core/countdown.py
+
 from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
 from core.formatter import format_remaining_time, choose_update_interval
-from core.timers import get_timers, clear_timers
+from core.timers_store import clear_timers
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -10,7 +12,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     now = datetime.now(timezone.utc)
     remaining = int((entry.target_time - now).total_seconds())
 
-    # ⏰ ФИНИШ
+    # ⏰ FINISH
     if remaining <= 0:
         try:
             await context.bot.edit_message_text(

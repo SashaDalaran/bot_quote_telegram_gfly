@@ -1,24 +1,12 @@
+# core/timers.py
+
 from datetime import datetime, timezone
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
 from core.formatter import format_remaining_time, choose_update_interval
+from core.timers_store import register_timer
 from core.countdown import countdown_tick
-
-# 🔴 ЕДИНСТВЕННОЕ хранилище таймеров
-TIMERS: dict[int, list[TimerEntry]] = {}
-
-
-def register_timer(chat_id: int, entry: TimerEntry) -> None:
-    TIMERS.setdefault(chat_id, []).append(entry)
-
-
-def get_timers(chat_id: int) -> list[TimerEntry]:
-    return TIMERS.get(chat_id, [])
-
-
-def clear_timers(chat_id: int) -> None:
-    TIMERS.pop(chat_id, None)
 
 
 def create_timer(

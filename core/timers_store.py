@@ -34,3 +34,7 @@ def remove_timer(job_name: str) -> None:
 
 def clear_timers(chat_id: int) -> None:
     _TIMERS.pop(chat_id, None)
+
+
+# backward compatibility
+register_timer = add_timer

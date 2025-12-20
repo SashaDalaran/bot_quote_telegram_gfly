@@ -3,46 +3,67 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers_store import pop_last_timer, clear_timers
-from services.timer_service import cancel_job_by_name
+from core.timers_store import (
+    pop_last_timer,
+    get_timers,
+    clear_timers,
+)
 
-# /cancel
+
+# ---------- cancel LAST timer ----------
 async def cancel_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    await cancel_last_timer(update, context)
+    chat_id = update.effective_chat.id
+
+    entry = pop_last_timer(chat_id)
+    if not entry:
+        await update.message.reply_text("No active timers.")
+        return
+
+    # remove job
+    for job in context.job_queue.jobs():
+        if job.name == entry.job_name:
+            job.schedule_removal()
+            break
+
+    # unpin message
+    try:
+        await context.bot.unpin_chat_message(
+            chat_id=chat_id,
+            message_id=entry.message_id,
+        )
+    except Exception:
+        pass
+
+    await update.message.reply_text("⛔ Timer cancelled.")
 
 
-# /cancelall
+# ---------- cancel ALL timers ----------
 async def cancel_all_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    await cancel_all_timers(update, context)
-
-
-# ❌❌ /cancelall — отменяет ВСЕ таймеры в чате
-async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    timers = get_timers(chat_id)
 
-    entries = clear_timers(chat_id)
-    if not entries:
-        await update.message.reply_text("❌ No active timers.")
+    if not timers:
+        await update.message.reply_text("No timers to cancel.")
         return
 
-    for entry in entries:
-        cancel_job_by_name(context, entry.job_name)
+    for entry in timers:
+        for job in context.job_queue.jobs():
+            if job.name == entry.job_name:
+                job.schedule_removal()
 
-    await update.message.reply_text(f"🧹 Cancelled {len(entries)} timers.")
+        try:
+            await context.bot.unpin_chat_message(
+                chat_id=chat_id,
+                message_id=entry.message_id,
+            )
+        except Exception:
+            pass
 
-
-# commands/cancel.py
-
-from telegram import Update
-from telegram.ext import ContextTypes
-
-from services.timer_service import cancel_all_timers
-from services.timer_service import cancel_last_timer  # если есть
-
-
+    clear_timers(chat_id)
+    await update.message.reply_text("⛔ All timers cancelled.")

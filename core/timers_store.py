@@ -1,68 +1,36 @@
 # core/timers_store.py
 
 from typing import Dict, List, Optional
-from core.models import TimerEntry
 
-# =========================
-# In-memory storage
-# =========================
-
-_TIMERS: Dict[str, TimerEntry] = {}
+# chat_id -> list[TimerEntry]
+_TIMERS: Dict[int, List] = {}
 
 
-# =========================
-# Register / get
-# =========================
-
-def register_timer(entry: TimerEntry) -> None:
-    _TIMERS[entry.job_name] = entry
+def add_timer(chat_id: int, entry) -> None:
+    _TIMERS.setdefault(chat_id, []).append(entry)
 
 
-def get_entry(job_name: str) -> Optional[TimerEntry]:
-    return _TIMERS.get(job_name)
+def get_timers(chat_id: int) -> List:
+    return list(_TIMERS.get(chat_id, []))
 
 
-# =========================
-# Remove (aliases)
-# =========================
-
-def remove_entry(job_name: str) -> None:
-    _TIMERS.pop(job_name, None)
+def get_entry(job_name: str):
+    for timers in _TIMERS.values():
+        for entry in timers:
+            if entry.job_name == job_name:
+                return entry
+    return None
 
 
 def remove_timer(job_name: str) -> None:
-    # alias for compatibility
-    remove_entry(job_name)
+    for chat_id, timers in list(_TIMERS.items()):
+        _TIMERS[chat_id] = [
+            entry for entry in timers if entry.job_name != job_name
+        ]
+
+        if not _TIMERS[chat_id]:
+            del _TIMERS[chat_id]
 
 
-# =========================
-# Queries
-# =========================
-
-def get_timers(chat_id: Optional[int] = None) -> List[TimerEntry]:
-    """
-    - get_timers() -> all timers
-    - get_timers(chat_id) -> timers for chat
-    """
-    if chat_id is None:
-        return list(_TIMERS.values())
-
-    return [
-        entry
-        for entry in _TIMERS.values()
-        if entry.chat_id == chat_id
-    ]
-
-
-def clear_timers(chat_id: Optional[int] = None) -> None:
-    """
-    - clear_timers() -> clear all
-    - clear_timers(chat_id) -> clear only chat timers
-    """
-    if chat_id is None:
-        _TIMERS.clear()
-        return
-
-    for job_name, entry in list(_TIMERS.items()):
-        if entry.chat_id == chat_id:
-            _TIMERS.pop(job_name, None)
+def clear_timers(chat_id: int) -> None:
+    _TIMERS.pop(chat_id, None)

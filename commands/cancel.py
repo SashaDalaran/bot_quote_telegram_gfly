@@ -18,18 +18,20 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(timers) == 1:
         await _cancel_entry(update, context, timers[0])
+        await update.message.reply_text("⛔ Timer cancelled.")
         return
 
-    buttons = []
     now = datetime.now(timezone.utc)
+    buttons = []
 
     for entry in timers:
-        remaining = int((entry.target_time - now).total_seconds())
-        label = format_remaining_time(max(remaining, 0))
+        remaining = max(
+            0, int((entry.target_time - now).total_seconds())
+        )
 
         buttons.append([
             InlineKeyboardButton(
-                text=f"⏰ {label}",
+                text=f"⏰ {format_remaining_time(remaining)}",
                 callback_data=f"cancel:{entry.job_name}",
             )
         ])
@@ -46,9 +48,8 @@ async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _, job_name = query.data.split(":", 1)
     chat_id = query.message.chat_id
-    timers = get_timers(chat_id)
 
-    for entry in timers:
+    for entry in get_timers(chat_id):
         if entry.job_name == job_name:
             await _cancel_entry(update, context, entry)
             await query.edit_message_text("⛔ Timer cancelled.")

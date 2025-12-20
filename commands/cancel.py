@@ -5,7 +5,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers import get_timers, clear_timers
+from core.timers_store import get_timers, clear_timers
 
 
 # /cancel — отменить таймеры в текущем чате

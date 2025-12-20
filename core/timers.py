@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
 from core.timers_store import register_timer
-from core.scheduler import countdown_tick
+from core.countdown import countdown_tick  # ← ВОТ ТУТ ФИКС
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,14 @@ def create_timer(
     text: str | None = None,
     pin: bool = False,
 ) -> None:
+    delay = max(
+        int((target_time - datetime.now(timezone.utc)).total_seconds()),
+        1,
+    )
+
     job = context.job_queue.run_once(
         countdown_tick,
-        when=(target_time - datetime.now(timezone.utc)).total_seconds(),
+        when=delay,
     )
 
     entry = TimerEntry(

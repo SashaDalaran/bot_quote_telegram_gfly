@@ -53,18 +53,28 @@ def pretty_time_short(seconds: int) -> str:
     return f"{seconds}s"
 
 
-def choose_update_interval(remaining: int) -> int:
+# core/formatter.py
+
+def choose_update_interval(remaining_seconds: int) -> int:
     """
-    Decide how often to update timer message.
+    How often we should update the countdown message.
+
+    Goal:
+    - <= 60s: every 1s (smooth countdown)
+    - <= 5m: every 5s
+    - <= 30m: every 10s
+    - <= 2h: every 30s
+    - else: every 60s
     """
-    if remaining > 6 * 3600:
-        return 300        # every 5 min
-    if remaining > 3600:
-        return 120        # every 2 min
-    if remaining > 600:
-        return 60         # every 1 min
-    if remaining > 120:
-        return 30
-    if remaining > 30:
+    r = max(0, int(remaining_seconds))
+
+    if r <= 60:
+        return 1
+    if r <= 5 * 60:
+        return 5
+    if r <= 30 * 60:
         return 10
-    return 5
+    if r <= 2 * 60 * 60:
+        return 30
+    return 60
+

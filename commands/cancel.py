@@ -1,25 +1,40 @@
+# commands/cancel.py
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers_store import pop_last_timer
+from core.timers_store import (
+    cancel_timer,
+    cancel_all_timers_for_chat,
+)
+
+
+# -------------------------
+# /cancel <id>
+# -------------------------
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    entry = pop_last_timer(chat_id)
-
-    if not entry:
-        await update.message.reply_text("No active timers.")
+    if not context.args:
+        await update.message.reply_text("❌ Укажи ID таймера")
         return
 
-    for job in context.job_queue.jobs():
-        if job.data is entry:
-            job.schedule_removal()
+    timer_id = context.args[0]
 
-    try:
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=entry.message_id,
-            text="❌ Timer cancelled.",
-        )
-    except Exception:
-        pass
+    if cancel_timer(timer_id):
+        await update.message.reply_text(f"🛑 Таймер {timer_id} отменён")
+    else:
+        await update.message.reply_text("❌ Таймер не найден")
+
+
+# -------------------------
+# /cancelall
+# -------------------------
+
+async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    count = cancel_all_timers_for_chat(chat_id)
+
+    await update.message.reply_text(
+        f"🧹 Отменено таймеров: {count}"
+    )

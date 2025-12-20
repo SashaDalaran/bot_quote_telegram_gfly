@@ -3,32 +3,48 @@
 from typing import Dict, List
 from core.models import TimerEntry
 
+# In-memory store
 _TIMERS: Dict[str, TimerEntry] = {}
 
 
+# =========================
+# Basic operations
+# =========================
+
 def register_timer(entry: TimerEntry) -> None:
+    """
+    Save / overwrite timer entry by job_name
+    """
     _TIMERS[entry.job_name] = entry
 
 
-def get_timer(job_name: str) -> TimerEntry | None:
+def get_entry(job_name: str) -> TimerEntry | None:
+    """
+    Get single timer entry by job_name
+    """
     return _TIMERS.get(job_name)
 
 
-def remove_timer(job_name: str) -> None:
+def remove_entry(job_name: str) -> None:
+    """
+    Remove timer entry
+    """
     _TIMERS.pop(job_name, None)
 
 
-def get_timers(chat_id: int | None = None) -> List[TimerEntry]:
-    if chat_id is None:
-        return list(_TIMERS.values())
-    return [t for t in _TIMERS.values() if t.chat_id == chat_id]
+# =========================
+# Bulk helpers
+# =========================
+
+def get_timers() -> List[TimerEntry]:
+    """
+    Return all active timers
+    """
+    return list(_TIMERS.values())
 
 
-def clear_timers(chat_id: int | None = None) -> None:
-    if chat_id is None:
-        _TIMERS.clear()
-        return
-
-    for key in list(_TIMERS.keys()):
-        if _TIMERS[key].chat_id == chat_id:
-            del _TIMERS[key]
+def clear_timers() -> None:
+    """
+    Remove all timers
+    """
+    _TIMERS.clear()

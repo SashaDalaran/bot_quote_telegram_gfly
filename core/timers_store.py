@@ -31,19 +31,38 @@ def remove_entry(job_name: str) -> None:
 
 
 def remove_timer(job_name: str) -> None:
-    """
-    Alias for backward compatibility
-    """
+    # alias for compatibility
     remove_entry(job_name)
 
 
 # =========================
-# Bulk helpers
+# Queries
 # =========================
 
-def get_timers() -> List[TimerEntry]:
-    return list(_TIMERS.values())
+def get_timers(chat_id: Optional[int] = None) -> List[TimerEntry]:
+    """
+    - get_timers() -> all timers
+    - get_timers(chat_id) -> timers for chat
+    """
+    if chat_id is None:
+        return list(_TIMERS.values())
+
+    return [
+        entry
+        for entry in _TIMERS.values()
+        if entry.chat_id == chat_id
+    ]
 
 
-def clear_timers() -> None:
-    _TIMERS.clear()
+def clear_timers(chat_id: Optional[int] = None) -> None:
+    """
+    - clear_timers() -> clear all
+    - clear_timers(chat_id) -> clear only chat timers
+    """
+    if chat_id is None:
+        _TIMERS.clear()
+        return
+
+    for job_name, entry in list(_TIMERS.items()):
+        if entry.chat_id == chat_id:
+            _TIMERS.pop(job_name, None)

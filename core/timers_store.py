@@ -1,35 +1,40 @@
 # core/timers_store.py
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 from core.models import TimerEntry
 
-# In-memory store
+# =========================
+# In-memory storage
+# =========================
+
 _TIMERS: Dict[str, TimerEntry] = {}
 
 
 # =========================
-# Basic operations
+# Register / get
 # =========================
 
 def register_timer(entry: TimerEntry) -> None:
-    """
-    Save / overwrite timer entry by job_name
-    """
     _TIMERS[entry.job_name] = entry
 
 
-def get_entry(job_name: str) -> TimerEntry | None:
-    """
-    Get single timer entry by job_name
-    """
+def get_entry(job_name: str) -> Optional[TimerEntry]:
     return _TIMERS.get(job_name)
 
 
+# =========================
+# Remove (aliases)
+# =========================
+
 def remove_entry(job_name: str) -> None:
-    """
-    Remove timer entry
-    """
     _TIMERS.pop(job_name, None)
+
+
+def remove_timer(job_name: str) -> None:
+    """
+    Alias for backward compatibility
+    """
+    remove_entry(job_name)
 
 
 # =========================
@@ -37,14 +42,8 @@ def remove_entry(job_name: str) -> None:
 # =========================
 
 def get_timers() -> List[TimerEntry]:
-    """
-    Return all active timers
-    """
     return list(_TIMERS.values())
 
 
 def clear_timers() -> None:
-    """
-    Remove all timers
-    """
     _TIMERS.clear()

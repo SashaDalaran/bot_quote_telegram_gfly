@@ -7,12 +7,11 @@ from core.timers_store import clear_timers
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    cleared = clear_timers(chat_id)
+    count = clear_timers(chat_id)
 
-    if cleared:
-        await update.message.reply_text("❌ Timer cancelled.")
-    else:
-        await update.message.reply_text("⚠️ No active timer.")
+    await update.message.reply_text(
+        f"❌ Cancelled {count} timer(s)." if count else "⚠️ No active timers."
+    )
 
 
 async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

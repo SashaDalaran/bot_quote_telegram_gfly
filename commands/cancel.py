@@ -14,7 +14,9 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     clear_timers(chat_id)
+    await update.message.reply_text(f"🗑 Отменено таймеров: {len(timers)}")
 
-    await update.message.reply_text(
-        f"🗑 Отменено таймеров: {len(timers)}"
-    )
+
+# ✅ ДОБАВЛЯЕМ ЭТО
+async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await cancel_command(update, context)

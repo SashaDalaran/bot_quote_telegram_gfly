@@ -1,35 +1,39 @@
 # core/timers.py
+
 import uuid
 from datetime import datetime
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
-from core.timers_store import register_timer
-from core.countdown import countdown_tick
+from core.timers_store import add_timer
+from core.scheduler import countdown_tick
+
 
 def create_timer(
+    *,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
-    message_id: int,
     target_time: datetime,
-    text: str | None = None,
+    message: str | None = None,
+    pin_message_id: int | None = None,
 ) -> None:
     job_name = f"timer:{chat_id}:{uuid.uuid4().hex}"
 
     entry = TimerEntry(
         chat_id=chat_id,
-        message_id=message_id,
         target_time=target_time,
+        message=message,
+        message_id=pin_message_id,
         job_name=job_name,
-        text=text,
     )
 
-    register_timer(entry)
+    add_timer(chat_id, entry)
 
-    context.job_queue.run_repeating(
+    delay = max(1, int((target_time - datetime.utcnow()).total_seconds()))
+
+    context.job_queue.run_once(
         countdown_tick,
-        interval=1,
-        first=0,
-        data=entry,
+        delay,
         name=job_name,
+        data=entry,
     )

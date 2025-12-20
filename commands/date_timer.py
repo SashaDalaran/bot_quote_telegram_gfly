@@ -1,44 +1,40 @@
-# ==================================================
 # commands/date_timer.py
-# ==================================================
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from datetime import datetime, timezone
 
-from core.parser import parse_datetime_with_tz
 from core.timers import create_timer
 
 
-async def timerdate_command(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-    msg = update.effective_message
-    if msg is None:
-        return
-
-    args = context.args
-    if not args:
-        await msg.reply_text(
-            "Usage:\n/timerdate DD.MM.YYYY HH:MM +TZ text [--pin]"
+async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Usage: /timerdate YYYY-MM-DD HH:MM message"
         )
         return
 
+    date_part = context.args[0]
+    time_part = context.args[1]
+    message = " ".join(context.args[2:]) if len(context.args) > 2 else None
+
     try:
-        target_time_utc, text_start, _ = parse_datetime_with_tz(args)
-        text = " ".join(args[text_start:]).replace("--pin", "").strip() or None
-    except Exception as e:
-        await msg.reply_text(f"❌ Bad format: {e}")
+        target_time = datetime.strptime(
+            f"{date_part} {time_part}",
+            "%Y-%m-%d %H:%M",
+        ).replace(tzinfo=timezone.utc)
+    except ValueError:
+        await update.message.reply_text(
+            "Bad format. Use YYYY-MM-DD HH:MM"
+        )
         return
 
-    should_pin = "--pin" in args
-
-    create_timer(
+    await create_timer(
         context=context,
         chat_id=update.effective_chat.id,
-        target_time=target_time_utc,
-        text=text,
-        pin=should_pin,
+        target_time=target_time,
+        message=message,
+        pin_message_id=update.message.message_id,
     )
 
-    await msg.reply_text("⏳ Timer started.")
+    await update.message.reply_text("📅 Date timer set")

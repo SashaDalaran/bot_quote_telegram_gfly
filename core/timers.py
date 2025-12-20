@@ -1,40 +1,32 @@
-# core/timers.py
-import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
 from core.timers_store import register_timer
-from core.countdown import countdown_tick  # ← ВОТ ТУТ ФИКС
+from core.countdown import countdown_tick
 
-logger = logging.getLogger(__name__)
-
-
-def create_timer(
-    *,
+async def create_timer(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
-    target_time: datetime,
-    text: str | None = None,
-    pin: bool = False,
-) -> None:
-    delay = max(
-        int((target_time - datetime.now(timezone.utc)).total_seconds()),
-        1,
-    )
-
-    job = context.job_queue.run_once(
-        countdown_tick,
-        when=delay,
+    seconds: int,
+    message: str | None,
+):
+    sent = await context.bot.send_message(
+        chat_id=chat_id,
+        text="⏳ Timer started.",
     )
 
     entry = TimerEntry(
         chat_id=chat_id,
-        message_id=0,
-        target_time=target_time,
-        text=text,
-        pin=pin,
+        message_id=sent.message_id,
+        target_time=datetime.now(timezone.utc) + timedelta(seconds=seconds),
+        message=message,
     )
 
-    job.data = entry
     register_timer(entry)
+
+    context.job_queue.run_once(
+        countdown_tick,
+        1,
+        data=entry,
+    )

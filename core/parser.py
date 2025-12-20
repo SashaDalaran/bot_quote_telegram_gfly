@@ -1,32 +1,28 @@
-import re
+# core/parser.py
 
-_TIME_RE = re.compile(r"^(\d+)([smhd])$", re.IGNORECASE)
+from typing import List, Optional, Tuple
 
-_MULTIPLIERS = {
-    "s": 1,
-    "m": 60,
-    "h": 3600,
-    "d": 86400,
-}
 
-def parse_timer(args: list[str]) -> tuple[int, str | None]:
-    """
-    /timer 10s tea
-    /timer 5m
-    /timer 1h work
-    """
-
+def parse_timer(args: List[str]) -> Tuple[int, Optional[str]]:
     if not args:
-        return 0, None
+        raise ValueError("No timer value provided")
 
-    match = _TIME_RE.match(args[0])
-    if not match:
-        return 0, None
+    time_part = args[0]
+    message = " ".join(args[1:]) if len(args) > 1 else None
 
-    value = int(match.group(1))
-    unit = match.group(2).lower()
+    unit = time_part[-1]
+    value = time_part[:-1]
 
-    seconds = value * _MULTIPLIERS[unit]
-    text = " ".join(args[1:]) if len(args) > 1 else None
+    if not value.isdigit():
+        raise ValueError("Invalid timer value")
 
-    return seconds, text
+    seconds = int(value)
+
+    if unit == "s":
+        return seconds, message
+    if unit == "m":
+        return seconds * 60, message
+    if unit == "h":
+        return seconds * 3600, message
+
+    raise ValueError("Invalid time unit")

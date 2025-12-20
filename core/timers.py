@@ -43,7 +43,7 @@ def create_timer(
             message=text,
         )
 
-        register_timer(chat_id, entry)
+        register_timer(entry)
 
         delay = choose_update_interval(remaining)
         context.job_queue.run_once(

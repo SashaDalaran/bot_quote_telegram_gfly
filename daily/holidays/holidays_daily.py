@@ -49,19 +49,15 @@ TZ = timezone(timedelta(hours=3))  # GMT+3
 # Target channel IDs
 # --------------------------------------------------
 #
-# HOLIDAYS_CHANNEL_IDS is loaded from the environment
-# variable HOLIDAYS_CHANNEL_IDS.
+# Channel ids are loaded from env HOLIDAYS_CHANNEL_ID (comma-separated allowed).
 #
 # Format:
-#   HOLIDAYS_CHANNEL_IDS=123456789,-100987654321
+#   HOLIDAYS_CHANNEL_ID=123456789,-100987654321
 #
 # Multiple channel IDs are supported.
 #
 
-HOLIDAYS_CHANNEL_IDS = parse_chat_ids(
-    "HOLIDAYS_CHANNEL_ID",
-    fallback_keys=["HOLIDAYS_CHANNEL_IDS"],
-)
+HOLIDAYS_CHANNEL_IDS = parse_chat_ids("HOLIDAYS_CHANNEL_ID")
 
 # ==================================================
 # Job callback

@@ -237,16 +237,24 @@ Displays:
 
 ## 🔐 Environment Variables
 
-| Variable               | Description                      |
-| ---------------------- | -------------------------------- |
-| `TELEGRAM_BOT_TOKEN`   | Telegram bot token               |
-| `BANLU_CHANNEL_ID`     | Channel ID for Ban’Lu daily post |
-| `HOLIDAYS_CHANNEL_IDS` | Comma-separated channel IDs      |
+| Variable               | Description                                 |
+| ---------------------- | ------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`   | Telegram bot token                          |
+| `BANLU_CHANNEL_ID`     | Channel ID(s) for Ban’Lu daily post         |
+| `HOLIDAYS_CHANNEL_ID`  | Channel ID(s) for Holidays daily post       |
+| `BIRTHDAY_CHANNEL_ID`  | Channel ID(s) for Birthday daily post       |
+
+Notes:
+- Each `*_CHANNEL_ID` can contain **one** ID or **many** IDs separated by commas.
+  Example: `-100123,-100456`
 
 Example:
 
 ```sh
 fly secrets set TELEGRAM_BOT_TOKEN=xxx
+fly secrets set BANLU_CHANNEL_ID="-100123"
+fly secrets set HOLIDAYS_CHANNEL_ID="-100123,-100456"
+fly secrets set BIRTHDAY_CHANNEL_ID="-100123"
 ```
 
 ---

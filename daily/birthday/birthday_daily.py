@@ -13,20 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 def _parse_channel_ids() -> List[int]:
-    """Read channels from env.
-
-    Preferred: BIRTHDAY_CHANNEL_IDS="-100..,-100.."
-    Backward compatible: BIRTHDAY_CHANNEL_ID="-100.."
-    """
-    # Preferred: BIRTHDAY_CHANNEL_ID (can contain one ID or many comma-separated IDs)
-    # Back-compat: BIRTHDAY_CHANNEL_IDS
-    return parse_chat_ids("BIRTHDAY_CHANNEL_ID", fallback_keys=("BIRTHDAY_CHANNEL_IDS",))
+    """Read BIRTHDAY_CHANNEL_ID and parse single or comma-separated channel ids."""
+    return parse_chat_ids("BIRTHDAY_CHANNEL_ID")
 
 
 async def send_birthday_daily(app: Application) -> None:
     channels = _parse_channel_ids()
     if not channels:
-        logger.warning("Birthday daily: no BIRTHDAY_CHANNEL_ID(S) configured")
+        logger.warning("Birthday daily: no BIRTHDAY_CHANNEL_ID configured")
         return
 
     # In-memory de-duplication per channel per UTC day.
@@ -36,7 +30,7 @@ async def send_birthday_daily(app: Application) -> None:
     events = load_birthday_events()
     payload = get_today_birthday_payload(events=events)
 
-    if not any(payload.values()):
+    if not payload:
         logger.info("Birthday daily: nothing to send today")
         return
 

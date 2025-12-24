@@ -157,21 +157,52 @@ def _event_kind(event: Dict[str, Any]) -> str:
     return "birthdays"
 
 
-def get_today_birthday_payload(today: Optional[date] = None) -> Dict[str, List[Dict[str, Any]]]:
-    """Return payload grouped into: challenges, heroes, birthdays."""
-    today = today or date.today()
-    events = load_birthday_events()
+def get_today_birthday_payload(
+    today: Optional[date] = None,
+    events: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, List[Dict[str, str]]]]:
+    """Build payload for today's birthday message.
 
-    payload: Dict[str, List[Dict[str, Any]]] = {
+    - Supports injecting `events` for tests/CLI runs.
+    - If `events` is not provided, data will be loaded from data/birthday.json.
+    """
+
+    if today is None:
+        today = date.today()
+
+    if events is None:
+        events = load_birthdays()
+
+    payload: Dict[str, List[Dict[str, str]]] = {
         "challenges": [],
         "heroes": [],
-        "birthdays": [],
+        "events": [],
     }
 
-    for ev in events:
-        if not event_active_on(str(ev.get("date", "")), today=today):
+    for entry in events:
+        if not entry.get("date"):
             continue
-        kind = _event_kind(ev)
-        payload.setdefault(kind, []).append(ev)
+
+        try:
+            day, month = map(int, str(entry["date"]).split("."))
+        except Exception:
+            continue
+
+        if today.day == day and today.month == month:
+            item = {
+                "name": str(entry.get("name", "")).strip(),
+                "age": str(entry.get("age", "")).strip(),
+                "country": str(entry.get("country", "")).strip(),
+                "flag": str(entry.get("flag", "")).strip(),
+            }
+
+            category = str(entry.get("category", "events")).strip().lower()
+            if category not in payload:
+                category = "events"
+
+            payload[category].append(item)
+
+    if not any(payload.values()):
+        return None
 
     return payload

@@ -18,8 +18,7 @@ from services.channel_ids import parse_chat_ids
 TZ = timezone(timedelta(hours=3))  # GMT+3
 # Accept one or many chat IDs, comma-separated.
 # Primary: BANLU_CHANNEL_ID
-# Backward compatible: BANLU_CHANNEL_IDS
-BANLU_CHANNEL_IDS = parse_chat_ids("BANLU_CHANNEL_ID", fallback_keys=["BANLU_CHANNEL_IDS"])
+BANLU_CHANNEL_IDS = parse_chat_ids("BANLU_CHANNEL_ID")
 
 LAST_SENT_KEY = "banlu_last_sent"
 

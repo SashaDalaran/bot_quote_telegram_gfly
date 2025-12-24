@@ -209,6 +209,9 @@ COUNTRY_FLAGS = {
     # ---------------- Global / Religion ----------------
     "world": "🌍",
     "international": "🌐",
+    # Guild-specific pseudo-countries / tags (support both Latin and Cyrillic-C variants)
+    "Challenge": "⚡️",
+    "Complete": "🤡",
     "Сhallenge": "⚡️",
     "Сomplete": "🤡",
     "Murloc": "🐸",

@@ -161,46 +161,62 @@ def get_today_birthday_payload(
     today: Optional[date] = None,
     events: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, List[Dict[str, str]]]]:
-    """Build payload for today's birthday message.
+    """Build payload for the *combined* daily message:
 
-    - Supports injecting `events` for tests/CLI runs.
-    - If `events` is not provided, data will be loaded from data/birthday.json.
+    Expected source schema (data/birthday.json):
+      {
+        "date": "MM-DD" | "MM-DD:MM-DD",
+        "name": str,
+        "category": [str, ...],
+        "countries": [str, ...]
+      }
+
+    Buckets:
+      - challenges: range events where category contains "challenge" (incl. Cyrillic "Сhallenge")
+      - heroes:     range events that are NOT challenges
+      - birthdays:  single-day events
     """
 
     if today is None:
         today = date.today()
 
     if events is None:
-        events = load_birthdays()
+        events = load_birthday_events()
 
-    payload: Dict[str, List[Dict[str, str]]] = {
+    payload: Dict[str, List[Dict[str, Any]]] = {
         "challenges": [],
         "heroes": [],
-        "events": [],
+        "birthdays": [],
     }
 
-    for entry in events:
-        if not entry.get("date"):
+    for ev in events:
+        date_str = str(ev.get("date", "")).strip()
+        if not date_str:
             continue
 
-        try:
-            day, month = map(int, str(entry["date"]).split("."))
-        except Exception:
+        if not event_active_on(date_str, today=today):
             continue
 
-        if today.day == day and today.month == month:
-            item = {
-                "name": str(entry.get("name", "")).strip(),
-                "age": str(entry.get("age", "")).strip(),
-                "country": str(entry.get("country", "")).strip(),
-                "flag": str(entry.get("flag", "")).strip(),
+        kind = _event_kind(ev)
+        if kind not in payload:
+            continue
+
+        # Normalize lists for formatter
+        cats = ev.get("category") or []
+        if isinstance(cats, str):
+            cats = [cats]
+        countries = ev.get("countries") or []
+        if isinstance(countries, str):
+            countries = [countries]
+
+        payload[kind].append(
+            {
+                "date": date_str,
+                "name": str(ev.get("name", "")).strip(),
+                "category": [str(c) for c in cats if str(c).strip()],
+                "countries": [str(c) for c in countries if str(c).strip()],
             }
-
-            category = str(entry.get("category", "events")).strip().lower()
-            if category not in payload:
-                category = "events"
-
-            payload[category].append(item)
+        )
 
     if not any(payload.values()):
         return None

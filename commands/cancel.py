@@ -1,47 +1,25 @@
 # commands/cancel.py
+from __future__ import annotations
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.timers_store import pop_last_timer, get_timers, clear_timers
+from core.timers import cancel_last_timer, cancel_all_timers
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+    entry = cancel_last_timer(context, chat_id)
 
-    entry = pop_last_timer(chat_id)
     if not entry:
-        await update.message.reply_text("No timers to cancel.")
+        await update.effective_message.reply_text("No active timers to cancel.")
         return
 
-    # remove scheduled jobs with that name
-    for job in context.job_queue.get_jobs_by_name(entry.job_name):
-        job.schedule_removal()
-
-    # unpin + optionally notify
-    try:
-        await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.message_id)
-    except Exception:
-        pass
-
-    await update.message.reply_text("✅ Last timer canceled.")
+    await update.effective_message.reply_text("✅ Last timer canceled.")
 
 
 async def cancel_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    entries = clear_timers(chat_id)
+    n = cancel_all_timers(context, chat_id)
 
-    if not entries:
-        await update.message.reply_text("No timers to cancel.")
-        return
-
-    # remove all jobs + unpin their messages
-    for entry in entries:
-        for job in context.job_queue.get_jobs_by_name(entry.job_name):
-            job.schedule_removal()
-        try:
-            await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.message_id)
-        except Exception:
-            pass
-
-    await update.message.reply_text(f"✅ Canceled {len(entries)} timer(s).")
+    await update.effective_message.reply_text(f"✅ Canceled: {n} timer(s).")

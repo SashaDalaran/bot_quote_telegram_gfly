@@ -1,38 +1,40 @@
 # commands/simple_timer.py
+from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from core.parser import parse_timer
 from core.formatter import format_remaining_time
-from core.parser import parse_duration
 from core.timers import create_timer
 
 
 async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message:
-        return
-
     try:
-        seconds, msg = parse_duration(context.args)
+        seconds, msg = parse_timer(context.args)
     except Exception:
-        await update.message.reply_text("Usage: /timer 10s [message]  (also 5m, 2h, 1h30m, ...)")
+        await update.effective_message.reply_text(
+            "Usage: /timer <duration> [message]\n"
+            "Examples: /timer 10s tea\n"
+            "          /timer 5m\n"
+            "          /timer 1h30m stretching\n"
+            "(If you pass only digits like /timer 10 -> it's 10 minutes.)"
+        )
         return
 
-    target_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
+    chat_id = update.effective_chat.id
 
-    text = f"⏰ Time left: {format_remaining_time(seconds)}"
-    if msg:
-        text += f"\n{msg}"
+    started_text = f"⏰ Timer started: {format_remaining_time(seconds)}"
+    bot_msg = await update.effective_message.reply_text(started_text)
 
-    sent = await update.message.reply_text(text)
+    target = datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
     create_timer(
         context=context,
-        chat_id=update.effective_chat.id,
-        target_time=target_time,
+        chat_id=chat_id,
+        target_time=target,
+        message_id=bot_msg.message_id,  # IMPORTANT: we edit bot's own message
         message=msg,
-        message_id=sent.message_id,          # ✅ ВАЖНО: это сообщение БОТА
-        pin_message_id=update.message.message_id,
     )

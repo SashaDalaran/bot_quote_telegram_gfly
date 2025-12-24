@@ -118,18 +118,6 @@ def _split_owner_task(name: str) -> Tuple[str, str]:
     return raw.strip(), ""
 
 
-def _extract_role(text: str) -> Tuple[str, str]:
-    """Extract first @role token from text."""
-    parts = text.split()
-    role = ""
-    kept = []
-    for p in parts:
-        if not role and p.startswith("@"):
-            role = p
-            continue
-        kept.append(p)
-    return role, " ".join(kept).strip()
-
 
 def format_birthday_message(payload: Dict[str, List[dict]], today: Optional[date] = None) -> str:
     """Format 'Guild events' message from payload produced by services.birthday_service."""
@@ -175,8 +163,7 @@ def format_birthday_message(payload: Dict[str, List[dict]], today: Optional[date
         lines.append("🦸 <b>Heroes</b>")
         for i, ev in enumerate(heroes):
             name = _normalize_text(ev.get("name", ""))
-            role, cleaned = _extract_role(name)
-            who, desc = _split_owner_task(cleaned)
+            who, desc = _split_owner_task(name)
             who = html.escape(who)
             desc = html.escape(desc) if desc else ""
 
@@ -186,15 +173,14 @@ def format_birthday_message(payload: Dict[str, List[dict]], today: Optional[date
 
             date_str = str(ev.get("date", "")).strip()
             label = html.escape(_range_label(date_str))
-            role_part = f"в роли {html.escape(role)} " if role else ""
-            lines.append(f"↳ Промежуток отбывания {role_part}🗓️ {label}")
+            lines.append(f"↳ Промежуток отбывания в 💩 с 🗓️ {label}")
 
             resolved = _resolve_range_to_dates(date_str, today)
             if resolved:
                 start, end = resolved
                 day_num, total, remaining = _progress(today, start, end)
                 lines.append(
-                    f"↳ Осталось {remaining} {_ru_days(remaining)} (день {day_num} из {total})"
+                    f"↳ осталось {remaining} {_ru_days(remaining)} (день {day_num} из {total})"
                 )
 
             if i != len(heroes) - 1:

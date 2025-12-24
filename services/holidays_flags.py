@@ -209,6 +209,9 @@ COUNTRY_FLAGS = {
     # ---------------- Global / Religion ----------------
     "world": "🌍",
     "international": "🌐",
+    "Сhallenge": "⚡️",
+    "Сomplete": "🤡",
+    "Murloc": "🐸",
     "orthodox": "✝️",
     "catholic": "✝️",
     "protestant": "✝️",
@@ -236,6 +239,9 @@ COUNTRY_FLAGS = {
 #
 
 CATEGORY_EMOJIS = {
+    "Сhallenge": "⚡️",
+    "Accept": "💩",
+    "Birthday": "🥳",
     "Health": "🩺",
     "Cultural": "🎎",
     "Federal": "🏛️",

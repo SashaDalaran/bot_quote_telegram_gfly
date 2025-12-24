@@ -18,7 +18,7 @@
 
 ---
 
-## ✨ Overview!
+## ✨ Overview
 
 **bot-quote-telegram** is a modular Telegram bot that combines:
 

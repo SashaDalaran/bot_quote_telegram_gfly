@@ -1,57 +1,44 @@
-# Челендж Мурлоков
-{ "date": "12-19:01-20", "name": "СОУНИЯ ВЗЯТЬ 4 К РИО", "category": ["Сhallenge"], "countries": ["Сhallenge"] },
+[
+  { "date": "12-19:01-20", "name": "СОУНИЯ ВЗЯТЬ 4 К РИО", "category": ["challenge"], "countries": ["challenge"] },
+  { "date": "12-24:01-24", "name": "МУРЛОК - челендж был аксепт но не комплит", "category": ["accept"], "countries": ["complete"] },
 
-# Герой дня
-{ "date": "12-24:01-24", "name": "МУРЛОК - челендж был аксепт но не комплит", "category": ["Accept"], "countries": ["Complete"] },
+  { "date": "01-16", "name": "Дима Officer", "category": ["birthday"], "countries": ["murloc"] },
 
+  { "date": "02-02", "name": "Subbok (Максим)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "02-26", "name": "Aeldream (Антон)", "category": ["birthday"], "countries": ["murloc"] },
 
-# ДНИ РОЖДЕНИЯ
-{ "date": "01-16", "name": "Дима Officer", "category": ["Birthday"], "countries": ["Murloc"] },
+  { "date": "03-15", "name": "Нефоркиса (Алёна)", "category": ["birthday"], "countries": ["murloc"] },
 
+  { "date": "05-23", "name": "Киндретка (Настя)", "category": ["birthday"], "countries": ["murloc"] },
 
-{ "date": "02-02", "name": "Subbok (Максим)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "02-26", "name": "Aeldream (Антон)", "category": ["Birthday"], "countries": ["Murloc"] },
+  { "date": "06-03", "name": "Костя RL", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "06-03", "name": "Юрал (Юра)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "06-09", "name": "Мчи (Дава)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "06-19", "name": "Sam (Самвел)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "06-28", "name": "Коркроп (Дима)", "category": ["birthday"], "countries": ["murloc"] },
 
+  { "date": "07-16", "name": "Rhaenyras (Соня)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "07-31", "name": "Сладкоежка", "category": ["birthday"], "countries": ["murloc"] },
 
-{ "date": "03-15", "name": "Нефоркиса (Алёна)", "category": ["Birthday"], "countries": ["Murloc"] },
+  { "date": "08-21", "name": "Фил Officer", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "08-25", "name": "Benidorm (Гена)", "category": ["birthday"], "countries": ["murloc"] },
 
+  { "date": "09-12", "name": "Буйвалёнок (Костя)", "category": ["birthday"], "countries": ["murloc"] },
 
-{ "date": "05-23", "name": "Киндретка (Настя)", "category": ["Birthday"], "countries": ["Murloc"] },
+  { "date": "10-05", "name": "Тиктейл (Жаба)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "10-16", "name": "Ädc (Carry)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "10-23", "name": "Роньё", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "10-28", "name": "Антрагор (Никита)", "category": ["birthday"], "countries": ["murloc"] },
 
+  { "date": "11-20", "name": "Соуния (Dickey)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "11-24", "name": "Шаналот (Жора)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "11-25", "name": "Мамкоед (Ваня)", "category": ["birthday"], "countries": ["murloc"] },
 
-{ "date": "06-03", "name": "Костя RL", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "06-03", "name": "Юрал (Юра)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "06-09", "name": "Мчи (Дава)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "06-19", "name": "Sam (Самвел)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "06-28", "name": "Коркроп (Дима)", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "07-16", "name": "Rhaenyras (Соня)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "07-31", "name": "Сладкоежка", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "08-21", "name": "Фил Officer", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "08-25", "name": "Benidorm (Гена)", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "09-12", "name": "Буйвалёнок (Костя)", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "10-05", "name": "Тиктейл (Жаба)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "10-16", "name": "Ädc (Carry)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "10-23", "name": "Роньё", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "10-28", "name": "Антрагор (Никита)", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "11-20", "name": "Соуния (Dickey)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "11-24", "name": "Шаналот (Жора)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "11-25", "name": "Мамкоед (Ваня)", "category": ["Birthday"], "countries": ["Murloc"] },
-
-
-{ "date": "12-10", "name": "Герлари (Даня)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-10", "name": "Капшняк (Данчитос)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-23", "name": "Yöre (Даниил)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-24", "name": "ТЕСТ МУРЛОК", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-25", "name": "Sadness (Семён)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-27", "name": "Мотягойда (Мотя)", "category": ["Birthday"], "countries": ["Murloc"] },
-{ "date": "12-30", "name": "Шор (Олег)", "category": ["Birthday"], "countries": ["Murloc"] }
+  { "date": "12-10", "name": "Герлари (Даня)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-10", "name": "Капшняк (Данчитос)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-23", "name": "Yöre (Даниил)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-24", "name": "ТЕСТ МУРЛОК", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-25", "name": "Sadness (Семён)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-27", "name": "Мотягойда (Мотя)", "category": ["birthday"], "countries": ["murloc"] },
+  { "date": "12-30", "name": "Шор (Олег)", "category": ["birthday"], "countries": ["murloc"] }
+]

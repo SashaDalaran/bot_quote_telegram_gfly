@@ -1,45 +1,19 @@
 # ==================================================
-# services/holidays_flags.py — Holiday Flags & Categories
+# services/holidays_flags.py — Flags & Category Emojis
 # ==================================================
 #
-# This module contains static mappings used by the
-# Holidays domain logic and formatting layer.
+# Static mappings used by formatters.
 #
-# Responsibilities:
-# - Map country / region identifiers to emoji flags
-# - Map holiday categories to representative emojis
-#
-# IMPORTANT:
-# - This file contains ONLY static data.
-# - No logic, no Telegram API calls, no side effects.
-# - Keys must be normalized (lowercase, snake_case).
-#
-# These mappings are primarily used by:
-# - services/holidays_format.py
-#
+# Rules:
+# - Keys are normalized: lowercase + snake_case
+# - No Cyrillic letters in keys
+# - This file contains ONLY static data (no logic)
 # ==================================================
 
 # ==================================================
 # Country / Region Flags
 # ==================================================
-#
-# Maps normalized country or region identifiers
-# to their corresponding emoji flags.
-#
-# Examples:
-# - "georgia"  → 🇬🇪
-# - "usa"      → 🇺🇸
-# - "world"    → 🌍
-#
-# NOTE:
-# - Keys must match the identifiers used in
-#   holiday source data.
-# - Some entries represent regions, cultures,
-#   or religions rather than countries.
-#
-
 COUNTRY_FLAGS = {
-
     # ---------------- Europe ----------------
     "albania": "🇦🇱",
     "andorra": "🇦🇩",
@@ -180,6 +154,7 @@ COUNTRY_FLAGS = {
 
     # ---------------- Americas ----------------
     "usa": "🇺🇸",
+    "united_states": "🇺🇸",
     "canada": "🇨🇦",
     "mexico": "🇲🇽",
     "cuba": "🇨🇺",
@@ -209,12 +184,7 @@ COUNTRY_FLAGS = {
     # ---------------- Global / Religion ----------------
     "world": "🌍",
     "international": "🌐",
-    # Guild-specific pseudo-countries / tags (support both Latin and Cyrillic-C variants)
-    "Challenge": "⚡️",
-    "Complete": "🤡",
-    "Сhallenge": "⚡️",
-    "Сomplete": "🤡",
-    "Murloc": "🐸",
+
     "orthodox": "✝️",
     "catholic": "✝️",
     "protestant": "✝️",
@@ -227,90 +197,87 @@ COUNTRY_FLAGS = {
     "buddhism": "☸️",
     "hindu": "🕉️",
     "hinduism": "🕉️",
+
+    # ---------------- Guild tags (pseudo-countries) ----------------
+    "challenge": "⚡️",
+    "complete": "🤡",
+    "murloc": "🐸",
 }
 
 # ==================================================
-# Holiday Category Emojis
+# Category Emojis
 # ==================================================
-#
-# Maps holiday category names to emojis.
-#
-# NOTE:
-# - Category names must match source data exactly.
-# - Multiple aliases are intentionally supported
-#   (e.g. "Religion" / "Religious").
-#
-
 CATEGORY_EMOJIS = {
-    "Сhallenge": "⚡️",
-    "Accept": "💩",
-    "Birthday": "🥳",
-    "Health": "🩺",
-    "Cultural": "🎎",
-    "Federal": "🏛️",
-    "Special Interest": "⭐",
-    "Cause": "🎗️",
-    "Food & Beverage": "🍽️",
-    "Animal": "🐾",
-    "Appreciation": "🙏",
-    "Arts & Entertainment": "🎭",
-    "Relationship": "❤️",
-    "Fun": "🎉",
-    "Religion": "⛪",
-    "Religious": "⛪",
-    "Activity": "⚽",
-    "Activities": "⚽",
-    "Environment": "🌱",
-    "History": "📜",
-    "Historical": "📜",
-    "Technology": "💻",
-    "Education": "📚",
-    "Educational": "📚",
-    "Safety": "🚨",
-    "Fashion": "👗",
-    "Lifestyle": "🏡",
-    "Awareness": "📢",
-    "Civic": "🏙️",
-    "Children": "👶",
-    "Parents": "🧑‍🍼",
-    "Elderly": "🧓",
-    "Family": "👨‍👩‍👧‍👦",
-    "Friendship": "🤝",
-    "Sports": "🏅",
-    "Baking": "🧁",
-    "Cooking": "🍳",
-    "Food": "🍲",
-    "American food": "🍔",
-    "Comfort Food": "🥘",
-    "Chocolate": "🍫",
-    "Dessert": "🍰",
-    "Sweet Food": "🧁",
-    "Festivities": "🎄",
-    "Pop Culture": "🎤",
-    "Movie": "🎬",
-    "Movies": "🎬",
-    "Books": "📖",
-    "Dog": "🐶",
-    "Cat": "🐱",
-    "Pet": "🐾",
-    "Pet Health": "🐕‍🦺",
-    "American": "🦅",
-    "International": "🌐",
-    "Mental Health": "🧠",
-    "Conservation": "🦋",
-    "Wildlife": "🦁",
-    "Work": "💼",
-    "Career": "💼",
-    "Shopping": "🛍️",
-    "Brand": "🏷️",
-    "Beer": "🍺",
-    "Drinking": "🥃",
-    "Hobby": "🛠️",
-    "Pagan": "🧙‍♂️",
-    "Catholic": "✝️",
-    "Christian": "✝️",
-    "Beverage": "🥤",
-    "Crazy": "🤪",
-    "Funny": "😆",
-    "Liquor": "🍸",
+    # Guild categories
+    "challenge": "⚡️",
+    "accept": "💩",
+    "birthday": "🥳",
+
+    # General holidays
+    "health": "🩺",
+    "cultural": "🎎",
+    "federal": "🏛️",
+    "special_interest": "⭐",
+    "cause": "🎗️",
+    "food_and_beverage": "🍽️",
+    "animal": "🐾",
+    "appreciation": "🙏",
+    "arts_and_entertainment": "🎭",
+    "relationship": "❤️",
+    "fun": "🎉",
+    "religion": "⛪",
+    "religious": "⛪",
+    "activity": "⚽",
+    "activities": "⚽",
+    "environment": "🌱",
+    "history": "📜",
+    "historical": "📜",
+    "technology": "💻",
+    "education": "📚",
+    "educational": "📚",
+    "safety": "🚨",
+    "fashion": "👗",
+    "lifestyle": "🏡",
+    "awareness": "📢",
+    "civic": "🏙️",
+    "children": "👶",
+    "parents": "🧑‍🍼",
+    "elderly": "🧓",
+    "family": "👨‍👩‍👧‍👦",
+    "friendship": "🤝",
+    "sports": "🏅",
+    "baking": "🧁",
+    "cooking": "🍳",
+    "food": "🍲",
+    "american_food": "🍔",
+    "comfort_food": "🥘",
+    "chocolate": "🍫",
+    "dessert": "🍰",
+    "sweet_food": "🧁",
+    "festivities": "🎄",
+    "pop_culture": "🎤",
+    "movie": "🎬",
+    "movies": "🎬",
+    "books": "📖",
+    "dog": "🐶",
+    "cat": "🐱",
+    "pet": "🐾",
+    "pet_health": "🐕‍🦺",
+    "american": "🦅",
+    "international": "🌐",
+    "mental_health": "🧠",
+    "conservation": "🦋",
+    "wildlife": "🦁",
+    "work": "💼",
+    "career": "💼",
+    "shopping": "🛍️",
+    "brand": "🏷️",
+    "beer": "🍺",
+    "drinking": "🥃",
+    "hobby": "🛠️",
+    "pagan": "🧙‍♂️",
+    "beverage": "🥤",
+    "crazy": "🤪",
+    "funny": "😆",
+    "liquor": "🍸",
 }

@@ -110,7 +110,7 @@ def parse_datetime_utc(text: str, *, assume_tz=timezone.utc) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def parse_timerdate_args(full_text: str) -> Tuple[datetime, str]:
+def parse_timerdate_args(full_text: str, *, assume_tz=timezone.utc) -> Tuple[datetime, str]:
     """
     full_text example:
       "/timerdate 2025-12-31 23:59 New Year!"
@@ -127,7 +127,7 @@ def parse_timerdate_args(full_text: str) -> Tuple[datetime, str]:
         raise ValueError("Date/time is missing")
 
     dt_str = f"{parts[1]} {parts[2]}"
-    target = parse_datetime_utc(dt_str)
+    target = parse_datetime_utc(dt_str, assume_tz=assume_tz)
 
     message = parts[3].strip() if len(parts) == 4 else ""
     return target, message

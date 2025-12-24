@@ -26,12 +26,12 @@ def pop_last_timer(chat_id: int) -> Optional[TimerEntry]:
     return entry
 
 
-def remove_timer(chat_id: int, job_name: str) -> bool:
+def remove_timer(chat_id: int, message_id: int | None) -> bool:
     lst = _TIMERS.get(chat_id)
     if not lst:
         return False
 
-    new_lst = [t for t in lst if getattr(t, "job_name", None) != job_name]
+    new_lst = [t for t in lst if getattr(t, "message_id", None) != message_id]
     removed = len(new_lst) != len(lst)
 
     if new_lst:

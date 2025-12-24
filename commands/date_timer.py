@@ -3,7 +3,9 @@
 # ==================================================
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+_TBILISI_TZ = timezone(timedelta(hours=4))  # Asia/Tbilisi (UTC+4)
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -24,7 +26,7 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     try:
-        target_time, message = parse_timerdate_args(update.effective_message.text or "")
+        target_time, message = parse_timerdate_args(update.effective_message.text or "", assume_tz=_TBILISI_TZ)
     except Exception:
         await update.effective_message.reply_text(
             "Формат: /timerdate YYYY-MM-DD HH:MM [сообщение]\n"
@@ -62,5 +64,5 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         chat_id=sent.chat_id,
         target_time=target_time,
         message=message,
-        pin_message_id=sent.message_id,
+        message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
     )

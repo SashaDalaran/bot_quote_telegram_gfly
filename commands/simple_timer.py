@@ -64,5 +64,5 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         chat_id=sent.chat_id,
         target_time=target_time,
         message=parsed.message,
-        pin_message_id=sent.message_id,
+        message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
     )

@@ -12,9 +12,9 @@ from core.timers_store import remove_timer
 logger = logging.getLogger(__name__)
 
 
-def _cancel_kb(job_name: str) -> InlineKeyboardMarkup:
+def _cancel_kb(message_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_timer:{job_name}")]]
+        [[InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_timer:{message_id}")]]
     )
 
 
@@ -44,7 +44,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # убрать из стора
         try:
-            remove_timer(entry.chat_id, entry.job_name)
+            remove_timer(entry.chat_id, entry.message_id)
         except Exception:
             pass
 
@@ -66,11 +66,19 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
             chat_id=entry.chat_id,
             message_id=entry.message_id,
             text=new_text,
-            reply_markup=_cancel_kb(entry.job_name),
+            reply_markup=_cancel_kb(entry.message_id),
         )
         entry.last_text = new_text
     except Exception as e:
+        msg = str(e).lower()
         logger.warning("Edit failed: %s", e)
+        if "message to edit not found" in msg:
+            # сообщение удалено/не то id — останавливаем таймер, чтобы не зацикливаться
+            try:
+                remove_timer(entry.chat_id, entry.message_id)
+            except Exception:
+                pass
+            return
 
     delay = choose_interval(remaining)
     context.job_queue.run_once(

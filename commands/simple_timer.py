@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from datetime import datetime, timedelta
 
 from core.timers import create_timer
-from services.parser import parse_duration
+from core.parser import parse_timer
 
 
 async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -15,7 +15,12 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /timer 5m message")
         return
 
-    seconds, message = parse_duration(args)
+    try:
+        seconds, message = parse_timer(args)
+    except Exception:
+        await update.message.reply_text("Invalid time format.")
+        return
+
     if seconds <= 0:
         await update.message.reply_text("Invalid time format.")
         return

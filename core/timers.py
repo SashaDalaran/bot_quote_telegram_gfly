@@ -15,7 +15,7 @@ def _to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def create_timer(
+async def create_timer(
     *,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,

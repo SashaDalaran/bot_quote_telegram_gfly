@@ -46,7 +46,7 @@ def create_timer(
     delay = max(1, int((target_utc - now).total_seconds()))
 
     # ❗ импорт внутри функции — чтобы не было circular import
-    from core.scheduler import countdown_tick
+    from core.countdown import countdown_tick
 
     context.job_queue.run_once(
         countdown_tick,

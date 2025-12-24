@@ -1,28 +1,66 @@
-# commands/date_timer.py
+# ==================================================
+# commands/date_timer.py — /timerdate
+# ==================================================
 
-from telegram import Update
+import logging
+from datetime import datetime, timezone
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from services.parser import parse_datetime
+from services.parser import parse_timerdate_args
 from core.timers import create_timer
+
+logger = logging.getLogger(__name__)
 
 
 async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.message.reply_text("Usage: /timerdate YYYY-MM-DD HH:MM message")
+    """
+    /timerdate YYYY-MM-DD HH:MM [message]
+    Example:
+      /timerdate 2025-12-31 23:59 Happy New Year!
+    """
+    if not update.effective_chat or not update.effective_message:
         return
 
-    target_time, message = parse_datetime(context.args)
-    if not target_time:
-        await update.message.reply_text("Invalid date format.")
+    try:
+        target_time, message = parse_timerdate_args(update.effective_message.text or "")
+    except Exception:
+        await update.effective_message.reply_text(
+            "Формат: /timerdate YYYY-MM-DD HH:MM [сообщение]\n"
+            "Пример: /timerdate 2025-12-31 23:59 Новый год!"
+        )
         return
 
-    await create_timer(
+    now = datetime.now(timezone.utc)
+    if target_time <= now:
+        await update.effective_message.reply_text("Эта дата уже в прошлом 😅")
+        return
+
+    remaining = int((target_time - now).total_seconds())
+    text = f"⏰ Time left: {remaining} sec"
+    if message:
+        text += f"\n{message}"
+
+    sent = await update.effective_message.reply_text(text)
+
+    # attach cancel button
+    try:
+        kb = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Cancel", callback_data=f"cancel_timer:{sent.message_id}")]]
+        )
+        await context.bot.edit_message_reply_markup(
+            chat_id=sent.chat_id,
+            message_id=sent.message_id,
+            reply_markup=kb,
+        )
+    except Exception as e:
+        logger.warning("Failed to set cancel button: %s", e)
+
+    create_timer(
         context=context,
-        chat_id=update.effective_chat.id,
+        chat_id=sent.chat_id,
         target_time=target_time,
         message=message,
-        pin_message_id=update.message.message_id,  # ✅ так и должно быть
+        pin_message_id=sent.message_id,
     )
-
-    await update.message.reply_text("⏰ Timer scheduled!")

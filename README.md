@@ -200,8 +200,9 @@ Example:
 
 ```
 /cancel        — cancel specific timer
-/cancelall     — cancel all timers in chat
 ```
+
+Через /cancel также можно удалить **все** таймеры чата кнопкой в меню.
 
 ---
 

@@ -36,7 +36,7 @@ async def chat_id_command(
     context: ContextTypes.DEFAULT_TYPE,
 ):
     # Админ‑only: чтобы в группах ID не выдавался всем подряд
-    if not await is_admin(context.bot, update.effective_chat, update.effective_user):
+    if not await is_admin(update, context):
         await update.message.reply_text("⛔ Эта команда доступна только администраторам.")
         return
 

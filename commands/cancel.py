@@ -12,6 +12,25 @@ from core.timers_store import list_timers, remove_timer
 logger = logging.getLogger(__name__)
 
 
+async def _unpin_if_pinned(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int | None) -> None:
+    """Unpin конкретное сообщение, если оно сейчас закреплено."""
+    if not message_id:
+        return
+    try:
+        chat = await context.bot.get_chat(chat_id)
+        pinned = getattr(chat, "pinned_message", None)
+        if pinned and pinned.message_id == message_id:
+            await context.bot.unpin_chat_message(chat_id=chat_id, message_id=message_id)
+
+            # Подстраховка: иногда клиент показывает закреплённое, если оно не снялось.
+            chat2 = await context.bot.get_chat(chat_id)
+            pinned2 = getattr(chat2, "pinned_message", None)
+            if pinned2 and pinned2.message_id == message_id:
+                await context.bot.unpin_chat_message(chat_id=chat_id)
+    except Exception as e:
+        logger.warning("Unpin failed for chat=%s msg=%s: %s", chat_id, message_id, e)
+
+
 def _short(text: str, limit: int = 26) -> str:
     text = (text or "").replace("\n", " ").strip()
     if not text:
@@ -28,10 +47,11 @@ def _timer_label(entry) -> str:
 
     msg = _short(entry.message)
     if not msg:
-        msg = f"msg {entry.message_id}"
+        msg = "без текста"
 
     # Держим текст кнопки коротким (Telegram любит лимиты)
-    return f"❌ {format_remaining_time(remaining)} — {msg}"
+    # и добавляем id для уникальности/отладки
+    return f"❌ {format_remaining_time(remaining)} — {msg} (#{entry.message_id})"
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -98,12 +118,8 @@ async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.answer("Таймер уже не найден.")
             return
 
-        # Если был --pin, делаем unpin
-        if entry.pin_message_id:
-            try:
-                await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.pin_message_id)
-            except Exception as e:
-                logger.warning("Unpin failed (chat=%s, msg=%s): %s", chat_id, entry.pin_message_id, e)
+        # Если это было закреплённое сообщение — снимаем закреп
+        await _unpin_if_pinned(context, chat_id, entry.pin_message_id or msg_id)
 
         remove_timer_job(job_queue, chat_id, msg_id)
         remove_timer(chat_id, msg_id)
@@ -124,15 +140,12 @@ async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if action == "cancel_all":
         entries = list_timers(chat_id)
 
-        # unpin для всех pinned
+        # Сначала снимаем pin (если pinned_message совпадает с таймером)
         for entry in entries:
             if entry.pin_message_id:
-                try:
-                    await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.pin_message_id)
-                except Exception as e:
-                    logger.warning("Unpin failed (chat=%s, msg=%s): %s", chat_id, entry.pin_message_id, e)
+                await _unpin_if_pinned(context, chat_id, entry.pin_message_id)
 
-        # снять джобы + удалить записи
+        # Потом снимаем джобы + удаляем записи
         for entry in entries:
             remove_timer_job(job_queue, chat_id, entry.message_id)
             remove_timer(chat_id, entry.message_id)

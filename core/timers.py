@@ -56,3 +56,68 @@ def create_timer(
 
     logger.info("Timer created: %s", entry.job_name)
     return entry
+
+
+def remove_timer_job(
+    job_queue,
+    chat_id: int,
+    message_id: int,
+) -> None:
+    """Удаляет jobs таймера из JobQueue/APS cheduler.
+
+    В python-telegram-bot JobQueue использует APScheduler. При каждом тике мы
+    пересоздаём job через `run_once(..., name=entry.job_name)`. Поэтому у
+    конкретного таймера может быть 0..N jobs с одинаковым `name` и разными `id`.
+
+    Мы удаляем *все* jobs с name==entry.job_name.
+    """
+
+    try:
+        # Локальный импорт, чтобы не поймать круговые импорты.
+        from core.timers_store import list_timers
+
+        entry = next(
+            (t for t in list_timers(chat_id) if t.message_id == message_id),
+            None,
+        )
+        if not entry:
+            return
+
+        job_name = entry.job_name
+
+        # Предпочтительно через API PTB
+        jobs = []
+        try:
+            jobs = job_queue.get_jobs_by_name(job_name)
+        except Exception:
+            jobs = []
+
+        if jobs:
+            for j in jobs:
+                try:
+                    j.schedule_removal()
+                except Exception:
+                    # fallback
+                    try:
+                        j.remove()
+                    except Exception:
+                        pass
+            return
+
+        # Fallback: напрямую в APScheduler
+        try:
+            scheduler = getattr(job_queue, "scheduler", None)
+            if not scheduler:
+                return
+
+            for job in scheduler.get_jobs():
+                if getattr(job, "name", None) == job_name:
+                    try:
+                        scheduler.remove_job(job.id)
+                    except Exception:
+                        pass
+        except Exception:
+            return
+
+    except Exception as e:
+        logger.warning("remove_timer_job failed: %s", e)

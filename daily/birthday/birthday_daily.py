@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List
 
@@ -7,6 +6,7 @@ from telegram.ext import Application
 
 from services.birthday_format import format_birthday_message
 from services.birthday_service import get_today_birthday_payload, load_birthday_events
+from services.channel_ids import parse_chat_ids
 
 
 logger = logging.getLogger(__name__)
@@ -18,23 +18,9 @@ def _parse_channel_ids() -> List[int]:
     Preferred: BIRTHDAY_CHANNEL_IDS="-100..,-100.."
     Backward compatible: BIRTHDAY_CHANNEL_ID="-100.."
     """
-    raw_list = (os.getenv("BIRTHDAY_CHANNEL_IDS") or "").strip()
-    raw_single = (os.getenv("BIRTHDAY_CHANNEL_ID") or "").strip()
-
-    raw = raw_list or raw_single
-    if not raw:
-        return []
-
-    ids: List[int] = []
-    for part in raw.replace(";", ",").split(","):
-        part = part.strip()
-        if not part:
-            continue
-        try:
-            ids.append(int(part))
-        except ValueError:
-            logger.warning("Invalid channel id in BIRTHDAY env: %r", part)
-    return ids
+    # Preferred: BIRTHDAY_CHANNEL_ID (can contain one ID or many comma-separated IDs)
+    # Back-compat: BIRTHDAY_CHANNEL_IDS
+    return parse_chat_ids("BIRTHDAY_CHANNEL_ID", fallback_keys=("BIRTHDAY_CHANNEL_IDS",))
 
 
 async def send_birthday_daily(app: Application) -> None:

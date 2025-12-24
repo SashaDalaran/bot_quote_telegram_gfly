@@ -9,13 +9,17 @@ from services.banlu_service import (
     get_random_banlu_quote,
     format_banlu_message,
 )
+from services.channel_ids import parse_chat_ids
 
 # ==================================================
 # CONFIG
 # ==================================================
 
 TZ = timezone(timedelta(hours=3))  # GMT+3
-BANLU_CHANNEL_ID = int(os.getenv("BANLU_CHANNEL_ID", "0"))
+# Accept one or many chat IDs, comma-separated.
+# Primary: BANLU_CHANNEL_ID
+# Backward compatible: BANLU_CHANNEL_IDS
+BANLU_CHANNEL_IDS = parse_chat_ids("BANLU_CHANNEL_ID", fallback_keys=["BANLU_CHANNEL_IDS"])
 
 LAST_SENT_KEY = "banlu_last_sent"
 
@@ -46,13 +50,12 @@ async def send_banlu_daily(context: ContextTypes.DEFAULT_TYPE):
     quotes = context.bot_data.get("banlu_quotes", [])
     quote = get_random_banlu_quote(quotes)
 
-    if not quote or not BANLU_CHANNEL_ID:
+    if not quote or not BANLU_CHANNEL_IDS:
         return
 
-    await context.bot.send_message(
-        chat_id=BANLU_CHANNEL_ID,
-        text=format_banlu_message(quote),
-    )
+    text = format_banlu_message(quote)
+    for chat_id in BANLU_CHANNEL_IDS:
+        await context.bot.send_message(chat_id=chat_id, text=text)
 
     _mark_sent_today(context)
 

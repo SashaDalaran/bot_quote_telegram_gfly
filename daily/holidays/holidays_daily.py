@@ -33,6 +33,7 @@ from telegram.ext import Application, ContextTypes
 
 from services.holidays_service import get_today_holidays
 from services.holidays_format import format_holidays_message
+from services.channel_ids import parse_chat_ids
 
 # ==================================================
 # Configuration
@@ -57,18 +58,10 @@ TZ = timezone(timedelta(hours=3))  # GMT+3
 # Multiple channel IDs are supported.
 #
 
-HOLIDAYS_CHANNEL_IDS = []
-
-raw_ids = os.getenv("HOLIDAYS_CHANNEL_IDS", "")
-for cid in raw_ids.split(","):
-    cid = cid.strip()
-    if not cid:
-        continue
-    try:
-        HOLIDAYS_CHANNEL_IDS.append(int(cid))
-    except ValueError:
-        # Ignore invalid channel IDs silently
-        pass
+HOLIDAYS_CHANNEL_IDS = parse_chat_ids(
+    "HOLIDAYS_CHANNEL_ID",
+    fallback_keys=["HOLIDAYS_CHANNEL_IDS"],
+)
 
 # ==================================================
 # Job callback

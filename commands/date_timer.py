@@ -91,4 +91,5 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         target_time=target_time,
         message=message,
         message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
+        pin_message_id=sent.message_id if pin else None,
     )

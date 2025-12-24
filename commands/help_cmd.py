@@ -81,8 +81,7 @@ async def help_command(
     if await is_admin(update, context):
         text += (
             "\n🛡 <b>Administrator</b>\n"
-            "/cancel — cancel timers in this chat\n"
-            "/cancelall — cancel all timers\n"
+            "/cancel — cancel timers (there is also a button to cancel all)\n"
             "/chat_id — show chat ID\n"
         )
 

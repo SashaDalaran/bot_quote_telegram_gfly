@@ -1,124 +1,148 @@
-# ==================================================
-# commands/cancel.py — /cancel + inline cancel buttons
-# ==================================================
-
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from datetime import datetime, timezone
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
+
+from core.admin import is_admin
+from core.formatter import format_remaining_time
+from core.timers import remove_timer_job
+from core.timers_store import list_timers, remove_timer
 
 logger = logging.getLogger(__name__)
 
 
-def _get_chat_timer_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    jobs = []
-    for job in context.job_queue.jobs():
-        data = getattr(job, "data", None)
-        if getattr(data, "chat_id", None) == chat_id:
-            jobs.append(job)
-    return jobs
+def _short(text: str, limit: int = 26) -> str:
+    text = (text or "").replace("\n", " ").strip()
+    if not text:
+        return ""
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def _cancel_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int | None = None) -> int:
-    jobs = _get_chat_timer_jobs(context, chat_id)
+def _timer_label(entry) -> str:
+    """Короткое, понятное имя таймера для кнопки."""
+    now = datetime.now(timezone.utc)
+    remaining = int((entry.target_time - now).total_seconds())
+    if remaining < 0:
+        remaining = 0
 
-    removed = 0
-    for job in jobs:
-        data = getattr(job, "data", None)
-        if message_id is not None and getattr(data, "message_id", None) != message_id:
-            continue
-        job.schedule_removal()
-        removed += 1
+    msg = _short(entry.message)
+    if not msg:
+        msg = f"msg {entry.message_id}"
 
-    # опционально почистить store
-    try:
-        if message_id is None:
-            from core.timers_store import remove_all_timers_for_chat
-            remove_all_timers_for_chat(chat_id)
-        else:
-            from core.timers_store import remove_timer
-            remove_timer(chat_id, message_id)
-    except Exception:
-        pass
-
-    return removed
+    # Держим текст кнопки коротким (Telegram любит лимиты)
+    return f"❌ {format_remaining_time(remaining)} — {msg}"
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/cancel -> показать кнопки отмены."""
-    chat_id = update.effective_chat.id
-    jobs = _get_chat_timer_jobs(context, chat_id)
-
-    if not jobs:
-        await update.message.reply_text("Активных таймеров нет ✅")
+    # Админ‑only
+    if not await is_admin(update, context):
+        await update.message.reply_text("⛔ Эта команда доступна только администраторам.")
         return
 
-    # собираем уникальные message_id таймеров
-    message_ids = []
-    for job in jobs:
-        data = getattr(job, "data", None)
-        mid = getattr(data, "message_id", None)
-        if isinstance(mid, int) and mid not in message_ids:
-            message_ids.append(mid)
+    chat_id = update.effective_chat.id
+    timers = list_timers(chat_id)
 
-    rows = []
-    for mid in message_ids[:20]:
-        rows.append([InlineKeyboardButton(f"❌ Отменить таймер (msg {mid})", callback_data=f"cancel_one|{mid}")])
+    if not timers:
+        await update.message.reply_text("Нет активных таймеров.")
+        return
 
-    rows.append([InlineKeyboardButton("🧹 Cancel ALL timers", callback_data=f"cancel_all|{chat_id}")])
+    # Сортируем по ближайшему окончанию
+    timers.sort(key=lambda t: t.target_time)
+
+    keyboard = []
+    for t in timers:
+        keyboard.append(
+            [InlineKeyboardButton(_timer_label(t), callback_data=f"cancel_one:{chat_id}:{t.message_id}")]
+        )
+
+    # ВАЖНО: команду /cancelall убираем, но кнопку "удалить все" оставляем внутри /cancel
+    keyboard.append(
+        [InlineKeyboardButton("🧹 Отменить ВСЕ таймеры", callback_data=f"cancel_all:{chat_id}")]
+    )
 
     await update.message.reply_text(
         "Выбери, что отменить:",
-        reply_markup=InlineKeyboardMarkup(rows),
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
 async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик inline cancel."""
     query = update.callback_query
-    if not query:
+    if not query or not query.data:
         return
 
-    data = query.data or ""
-    await query.answer()
-
-    chat_id = query.message.chat_id if query.message else None
-    if chat_id is None:
+    # Админ‑only (важно: кнопки может нажать кто угодно в группе)
+    if not await is_admin(update, context):
+        await query.answer("⛔ Только администратор", show_alert=True)
         return
 
-    # 1) cancel_timer:<message_id> (кнопка в самом таймере)
-    if data.startswith("cancel_timer:"):
-        try:
-            mid = int(data.split(":", 1)[1])
-        except Exception:
-            await query.edit_message_text("⚠️ Некорректные данные cancel.")
+    try:
+        action, chat_id_str, *rest = query.data.split(":")
+        chat_id = int(chat_id_str)
+    except Exception:
+        await query.answer("Некорректные данные", show_alert=True)
+        return
+
+    job_queue = context.job_queue
+
+    if action == "cancel_one":
+        if not rest:
+            await query.answer("Некорректные данные", show_alert=True)
+            return
+        msg_id = int(rest[0])
+
+        # Находим запись таймера (нужна для unpin)
+        entry = next((t for t in list_timers(chat_id) if t.message_id == msg_id), None)
+        if not entry:
+            await query.answer("Таймер уже не найден.")
             return
 
-        removed = _cancel_jobs(context, chat_id, message_id=mid)
+        # Если был --pin, делаем unpin
+        if entry.pin_message_id:
+            try:
+                await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.pin_message_id)
+            except Exception as e:
+                logger.warning("Unpin failed (chat=%s, msg=%s): %s", chat_id, entry.pin_message_id, e)
 
-        # пытаемся обновить текст именно таймер-сообщения
+        remove_timer_job(job_queue, chat_id, msg_id)
+        remove_timer(chat_id, msg_id)
+
+        # Обновляем текст самого таймера (если он ещё есть)
         try:
-            await query.edit_message_text(f"❌ Timer cancelled. (removed jobs: {removed})")
-        except Exception:
-            # если не получилось edit (например, уже изменено) — просто шлём сообщение
-            await context.bot.send_message(chat_id=chat_id, text=f"❌ Timer cancelled. (removed jobs: {removed})")
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text="⛔ Таймер отменён.",
+            )
+        except Exception as e:
+            logger.warning("Edit cancelled timer message failed: %s", e)
+
+        await query.answer("Ок")
         return
 
-    # 2) cancel_one|<message_id>
-    if data.startswith("cancel_one|"):
+    if action == "cancel_all":
+        entries = list_timers(chat_id)
+
+        # unpin для всех pinned
+        for entry in entries:
+            if entry.pin_message_id:
+                try:
+                    await context.bot.unpin_chat_message(chat_id=chat_id, message_id=entry.pin_message_id)
+                except Exception as e:
+                    logger.warning("Unpin failed (chat=%s, msg=%s): %s", chat_id, entry.pin_message_id, e)
+
+        # снять джобы + удалить записи
+        for entry in entries:
+            remove_timer_job(job_queue, chat_id, entry.message_id)
+            remove_timer(chat_id, entry.message_id)
+
+        await query.answer("Ок")
         try:
-            mid = int(data.split("|", 1)[1])
+            await query.edit_message_text("✅ Все таймеры отменены.")
         except Exception:
-            await context.bot.send_message(chat_id=chat_id, text="⚠️ Некорректные данные cancel_one.")
-            return
-
-        removed = _cancel_jobs(context, chat_id, message_id=mid)
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Cancelled timer {mid}. (removed jobs: {removed})")
+            # если не можем редактировать меню — просто молча
+            pass
         return
 
-    # 3) cancel_all|<chat_id>
-    if data.startswith("cancel_all|"):
-        removed = _cancel_jobs(context, chat_id, message_id=None)
-        await context.bot.send_message(chat_id=chat_id, text=f"🧹 Cancelled ALL timers. (removed jobs: {removed})")
-        return
-
-    logger.info("Unknown cancel callback data: %s", data)
+    await query.answer("Неизвестное действие", show_alert=True)

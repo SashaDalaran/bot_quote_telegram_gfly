@@ -56,35 +56,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
-def _get_chat_timer_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    """
-    Берём jobs из JobQueue и фильтруем по job.data.chat_id.
-    """
-    jobs = []
-    for job in context.job_queue.jobs():
-        data = getattr(job, "data", None)
-        if getattr(data, "chat_id", None) == chat_id:
-            jobs.append(job)
-    return jobs
-
-
-async def cancelall_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    /cancelall (или /cancel_all) -> отменить ВСЕ таймеры в чате (без кнопок)
-    """
-    chat_id = update.effective_chat.id
-    jobs = _get_chat_timer_jobs(context, chat_id)
-
-    if not jobs:
-        await update.message.reply_text("Активных таймеров в этом чате нет ✅")
-        return
-
-    for job in jobs:
-        job.schedule_removal()
-
-    await update.message.reply_text(f"🧹 Отменил все таймеры в этом чате: {len(jobs)}")
-
-
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
@@ -114,9 +85,7 @@ def main() -> None:
 
     # ✅ cancel menu + callbacks (из commands/cancel.py)
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
-    app.add_handler(CommandHandler("cancelall", cancelall_command, filters=private_and_groups))
-    app.add_handler(CommandHandler("cancel_all", cancelall_command, filters=private_and_groups))
-    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^(cancel_timer:|cancel_one\||cancel_all\|)"))
+    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^(cancel_one:|cancel_all:)"))
 
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))

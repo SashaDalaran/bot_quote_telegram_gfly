@@ -23,6 +23,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from core.admin import is_admin
+
 # ==================================================
 # /chat_id command
 # ==================================================
@@ -33,6 +35,11 @@ async def chat_id_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    # Админ‑only: чтобы в группах ID не выдавался всем подряд
+    if not await is_admin(context.bot, update.effective_chat, update.effective_user):
+        await update.message.reply_text("⛔ Эта команда доступна только администраторам.")
+        return
+
     chat = update.effective_chat
 
     await update.message.reply_text(

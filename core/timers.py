@@ -1,55 +1,81 @@
 # core/timers.py
-from __future__ import annotations
 
-import uuid
+import logging
 from datetime import datetime, timezone
-from typing import Optional
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
-from core.timers_store import add_timer, get_timers, pop_last_timer, clear_timers
+from core.formatter import format_remaining, choose_interval
 from core.countdown import countdown_tick
-from core.formatter import choose_update_interval
+from core.timers_store import add_timer
+
+logger = logging.getLogger(__name__)
 
 
-def _make_job_name(chat_id: int, message_id: int) -> str:
-    return f"timer:{chat_id}:{message_id}:{uuid.uuid4().hex[:8]}"
+def _cancel_kb(job_name: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_timer:{job_name}")]]
+    )
 
 
-def create_timer(
+async def create_timer(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
-    # ✅ совместимость: где-то может быть message_id, где-то pin_message_id
-    message_id: Optional[int] = None,
-    pin_message_id: Optional[int] = None,
-    message: Optional[str] = None,
+    text: str = "",
+    pin_message_id: int | None = None,  # оставил для совместимости (можешь не использовать)
 ) -> TimerEntry:
-    if target_time.tzinfo is None:
-        # treat naive as UTC
-        target_time = target_time.replace(tzinfo=timezone.utc)
+    """
+    Создаёт сообщение таймера и запускает обновления через JobQueue.
+    Совместимо с: await create_timer(...)
+    """
 
-    mid = message_id if message_id is not None else pin_message_id
-    if mid is None:
-        raise ValueError("message_id (or pin_message_id) is required")
+    now = datetime.now(timezone.utc)
+    remaining = int((target_time - now).total_seconds())
+    if remaining < 0:
+        remaining = 0
 
-    job_name = _make_job_name(chat_id, mid)
+    # 1) Отправляем сообщение (чтобы получить message_id)
+    initial_text = f"⏰ Time left: {format_remaining(remaining)}"
+    if text:
+        initial_text += f"\n{text}"
 
+    sent = await context.bot.send_message(chat_id=chat_id, text=initial_text)
+
+    # 2) Делаем стабильное имя job (и для логов, и для cancel)
+    job_name = f"timer:{chat_id}:{sent.message_id}"
+
+    # 3) Вешаем кнопку cancel (через edit — так гарантированно прикрепим клаву)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=sent.message_id,
+            text=initial_text,
+            reply_markup=_cancel_kb(job_name),
+        )
+    except Exception as e:
+        logger.warning("Failed to attach cancel keyboard: %s", e)
+
+    # 4) Entry (модель у тебя: chat_id, message_id, target_time, job_name, text)
     entry = TimerEntry(
         chat_id=chat_id,
-        message_id=mid,
-        target_time=target_time.astimezone(timezone.utc),
-        message=message,
+        message_id=sent.message_id,
+        target_time=target_time,
         job_name=job_name,
-        last_text=None,
+        text=text or "",
     )
+
+    # доп. поля можно навесить динамически (модель менять не надо)
+    entry.last_text = initial_text
+    entry.cancelled = False
+    entry.pin_message_id = pin_message_id
 
     add_timer(entry)
 
-    remaining = int((entry.target_time - datetime.now(timezone.utc)).total_seconds())
-    delay = choose_update_interval(max(remaining, 1))
-
+    # 5) Планируем первый тик
+    delay = choose_interval(remaining)
     context.job_queue.run_once(
         countdown_tick,
         delay,
@@ -58,26 +84,3 @@ def create_timer(
     )
 
     return entry
-
-
-def cancel_last_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> Optional[TimerEntry]:
-    entry = pop_last_timer(chat_id)
-    if not entry:
-        return None
-
-    if entry.job_name:
-        for job in context.job_queue.get_jobs_by_name(entry.job_name):
-            job.schedule_removal()
-
-    return entry
-
-
-def cancel_all_timers(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> int:
-    timers = get_timers(chat_id)
-
-    for entry in timers:
-        if entry.job_name:
-            for job in context.job_queue.get_jobs_by_name(entry.job_name):
-                job.schedule_removal()
-
-    return clear_timers(chat_id)

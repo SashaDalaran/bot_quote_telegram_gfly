@@ -5,6 +5,9 @@
 import logging
 import traceback
 from datetime import datetime, timezone
+from telegram.ext import CallbackQueryHandler
+from telegram.ext import CallbackQueryHandler
+from commands.cancel import cancel_callback
 
 from telegram import Update
 from telegram.ext import (
@@ -130,15 +133,19 @@ def main() -> None:
     app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
 
     # ✅ cancel UI + callback
+    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^cancel_timer:"))
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
     app.add_handler(CommandHandler("cancelall", cancelall_command, filters=private_and_groups))
     app.add_handler(CommandHandler("cancel_all", cancelall_command, filters=private_and_groups))
 
     # callback data из cancel.py: cancel_one|... или cancel_all|...
-    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^(cancel_one\||cancel_all\|)"))
+    app.add_handler(CallbackQueryHandler(cancel_callback,pattern=r"^(cancel_timer:|cancel_one\||cancel_all\|)")
+)
+
 
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
+    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^cancel"))
 
     # daily jobs
     setup_banlu_daily(app)

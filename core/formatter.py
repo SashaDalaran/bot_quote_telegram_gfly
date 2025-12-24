@@ -1,48 +1,48 @@
 # core/formatter.py
-from __future__ import annotations
-
 
 def format_remaining(seconds: int) -> str:
-    """
-    Human-friendly remaining time.
-    Examples:
-      9 -> "9s"
-      70 -> "1m 10s"
-      3700 -> "1h 1m 40s"
-      90000 -> "1d 1h 0m 0s"
-    """
-    if seconds < 0:
-        seconds = 0
-
-    d, rem = divmod(seconds, 86400)
-    h, rem = divmod(rem, 3600)
-    m, s = divmod(rem, 60)
+    """Format remaining seconds into a human-friendly string."""
+    seconds = max(0, int(seconds))
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
 
     parts = []
     if d:
         parts.append(f"{d}d")
-    if h or d:
+    if h:
         parts.append(f"{h}h")
-    if m or h or d:
+    if m:
         parts.append(f"{m}m")
-    parts.append(f"{s}s")
+    if s or not parts:
+        parts.append(f"{s}s")
+
     return " ".join(parts)
 
 
-def choose_update_interval(seconds: int) -> int:
-    """
-    Adaptive refresh interval to avoid too-frequent edits for long timers.
-    """
-    if seconds > 6 * 3600:
-        return 120
-    if seconds > 3600:
-        return 60
-    if seconds > 15 * 60:
-        return 15
-    if seconds > 60:
+def choose_interval(remaining_seconds: int) -> int:
+    """Pick how often we should update the countdown message."""
+    r = max(0, int(remaining_seconds))
+
+    if r <= 15:
+        return 1
+    if r <= 60:
+        return 2
+    if r <= 5 * 60:
         return 5
-    return 1
+    if r <= 30 * 60:
+        return 15
+    if r <= 2 * 60 * 60:
+        return 60
+    return 5 * 60
 
 
-# Back-compat alias (older code may import choose_interval)
-choose_interval = choose_update_interval
+# -------------------------
+# Backward-compatible names
+# -------------------------
+def format_remaining_time(seconds: int) -> str:
+    return format_remaining(seconds)
+
+
+def choose_update_interval(remaining_seconds: int) -> int:
+    return choose_interval(remaining_seconds)

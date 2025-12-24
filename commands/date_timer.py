@@ -1,40 +1,61 @@
+# ==================================================
 # commands/date_timer.py
+# ==================================================
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
 
 from telegram import Update
 from telegram.ext import ContextTypes
-from datetime import datetime, timezone
 
 from core.timers import create_timer
 
 
-async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 2:
-        await update.message.reply_text(
-            "Usage: /timerdate YYYY-MM-DD HH:MM message"
-        )
+DATE_FORMAT = "%d.%m.%Y"
+TIME_FORMAT = "%H:%M"
+
+USAGE = f"Usage: /timer_date {DATE_FORMAT} {TIME_FORMAT} [message]"
+
+
+async def date_timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message:
         return
 
-    date_part = context.args[0]
-    time_part = context.args[1]
-    message = " ".join(context.args[2:]) if len(context.args) > 2 else None
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(USAGE)
+        return
+
+    date_str = args[0]
+    time_str = args[1]
+    message = " ".join(args[2:]).strip()
 
     try:
-        target_time = datetime.strptime(
-            f"{date_part} {time_part}",
-            "%Y-%m-%d %H:%M",
-        ).replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(f"{date_str} {time_str}", f"{DATE_FORMAT} {TIME_FORMAT}")
     except ValueError:
-        await update.message.reply_text(
-            "Bad format. Use YYYY-MM-DD HH:MM"
-        )
+        await update.message.reply_text(USAGE)
         return
 
-    await create_timer(
+    # Interpret as UTC to match server behavior/logs.
+    dt = dt.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    if dt <= now:
+        await update.message.reply_text("That time is in the past. Give me a future time.")
+        return
+
+    initial_text = f"⏰ Timer set for {dt.strftime('%d.%m.%Y %H:%M')} UTC"
+    if message:
+        initial_text += f"\n{message}"
+
+    sent = await update.message.reply_text(initial_text)
+
+    entry = create_timer(
         context=context,
         chat_id=update.effective_chat.id,
-        target_time=target_time,
+        target_time=dt,
         message=message,
-        pin_message_id=update.message.message_id,
+        message_id=sent.message_id,
     )
-
-    await update.message.reply_text("📅 Date timer set")
+    entry.last_text = initial_text

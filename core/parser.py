@@ -1,76 +1,64 @@
+# ==================================================
 # core/parser.py
+# ==================================================
+#
+# Parsing helpers for timer commands.
+#
+# Supported formats:
+#   /timer 10s message...
+#   /timer 5m
+#   /timer 2h tea
+#   /timer 1d
+#
+# Units:
+#   s (seconds), m (minutes), h (hours), d (days)
+#
+# NOTE: keep this strict on purpose: requiring a unit avoids surprises.
+# ==================================================
 
-from datetime import datetime, timezone, timedelta
-from typing import List, Optional, Tuple
-import re
+from __future__ import annotations
 
-
-# -----------------------------
-# /timer 10s message
-# -----------------------------
-
-def parse_timer(args: List[str]) -> Tuple[int, Optional[str]]:
-    if not args:
-        raise ValueError("No timer value provided")
-
-    time_part = args[0]
-    message = " ".join(args[1:]) if len(args) > 1 else None
-
-    unit = time_part[-1]
-    value = time_part[:-1]
-
-    if not value.isdigit():
-        raise ValueError("Invalid timer value")
-
-    seconds = int(value)
-
-    if unit == "s":
-        return seconds, message
-    if unit == "m":
-        return seconds * 60, message
-    if unit == "h":
-        return seconds * 3600, message
-
-    raise ValueError("Invalid time unit")
+from typing import List, Tuple
 
 
-# -----------------------------
-# /timerdate 2025-12-21 18:00 Europe/Moscow message
-# -----------------------------
-
-_TZ_OFFSETS = {
-    "UTC": 0,
-    "MSK": 3,
-    "MOSCOW": 3,
-    "TBILISI": 4,
+_UNIT_MULTIPLIERS = {
+    "s": 1,
+    "m": 60,
+    "h": 60 * 60,
+    "d": 24 * 60 * 60,
 }
 
 
-def parse_datetime_with_tz(args: List[str]) -> Tuple[datetime, Optional[str]]:
+def parse_duration(token: str) -> int:
+    """Parse a single duration token like '10s', '5m', '2h', '1d' -> seconds.
+
+    Raises ValueError on invalid input.
     """
-    Examples:
-    /timerdate 2025-12-21 18:00 MSK text
-    /timerdate 2025-12-21 18:00 UTC
-    """
+    token = (token or "").strip().lower()
+    if not token:
+        raise ValueError("Empty duration")
 
-    if len(args) < 2:
-        raise ValueError("Not enough arguments")
+    unit = token[-1]
+    value_str = token[:-1]
 
-    date_part = args[0]
-    time_part = args[1]
+    if unit not in _UNIT_MULTIPLIERS:
+        raise ValueError("Duration must end with unit: s/m/h/d")
 
-    tz_name = "UTC"
-    message_start = 2
+    if not value_str.isdigit():
+        raise ValueError("Duration value must be an integer")
 
-    if len(args) >= 3 and args[2].upper() in _TZ_OFFSETS:
-        tz_name = args[2].upper()
-        message_start = 3
+    value = int(value_str)
+    if value <= 0:
+        raise ValueError("Duration must be > 0")
 
-    message = " ".join(args[message_start:]) if len(args) > message_start else None
+    return value * _UNIT_MULTIPLIERS[unit]
 
-    dt = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %H:%M")
 
-    offset = _TZ_OFFSETS.get(tz_name, 0)
-    tz = timezone(timedelta(hours=offset))
+def parse_timer(args: List[str]) -> Tuple[int, str]:
+    """Parse PTB args for /timer command: returns (seconds, message)."""
+    if not args:
+        raise ValueError("Usage: /timer 10s [message]")
 
-    return dt.replace(tzinfo=tz), message
+    seconds = parse_duration(args[0])
+    message = " ".join(args[1:]).strip()
+    return seconds, message

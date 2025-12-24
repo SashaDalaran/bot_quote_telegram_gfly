@@ -1,38 +1,47 @@
+# ==================================================
 # commands/simple_timer.py
+# ==================================================
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 
 from telegram import Update
 from telegram.ext import ContextTypes
-from datetime import datetime, timedelta
 
-from core.timers import create_timer
 from core.parser import parse_timer
+from core.formatter import format_remaining
+from core.timers import create_timer
 
 
-async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
+USAGE = "Usage: /timer 10s [message]  | units: s/m/h/d"
 
-    if not args:
-        await update.message.reply_text("Usage: /timer 5m message")
+
+async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message:
         return
 
     try:
-        seconds, message = parse_timer(args)
+        seconds, message = parse_timer(context.args)
     except Exception:
-        await update.message.reply_text("Invalid time format.")
+        await update.message.reply_text(USAGE)
         return
 
-    if seconds <= 0:
-        await update.message.reply_text("Invalid time format.")
-        return
+    target_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
-    target_time = datetime.utcnow() + timedelta(seconds=seconds)
+    # Send a bot-owned message (editable) and use it as the countdown container.
+    initial_text = f"⏰ Time left: {format_remaining(seconds)}"
+    if message:
+        initial_text += f"\n{message}"
 
-    await create_timer(
+    sent = await update.message.reply_text(initial_text)
+
+    entry = create_timer(
         context=context,
         chat_id=update.effective_chat.id,
         target_time=target_time,
         message=message,
-        pin_message_id=update.message.message_id,
+        message_id=sent.message_id,
     )
-
-    await update.message.reply_text("⏰ Timer started")
+    # prevent a pointless first edit
+    entry.last_text = initial_text

@@ -1,79 +1,83 @@
+# ==================================================
 # core/timers.py
+# ==================================================
 
+from __future__ import annotations
+
+import logging
 import uuid
 from datetime import datetime, timezone
+
 from telegram.ext import ContextTypes
 
 from core.models import TimerEntry
-from core.timers_store import add_timer, pop_last_timer, get_timers, clear_timers
+from core.formatter import choose_interval
+from core.countdown import countdown_tick
+from core.timers_store import add_timer, clear_timers, get_timers
+
+logger = logging.getLogger(__name__)
 
 
 def _to_utc(dt: datetime) -> datetime:
-    """Normalize datetime to timezone-aware UTC."""
     if dt.tzinfo is None:
+        # Interpret naive datetime as UTC to keep behavior predictable on server.
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
-async def create_timer(
-    *,
+def create_timer(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
-    message: str | None = None,
-    pin_message_id: int | None = None,
-) -> None:
-    if pin_message_id is None:
-        raise ValueError("pin_message_id is required (we edit that message later)")
+    message: str,
+    message_id: int,
+) -> TimerEntry:
+    """Create a timer and schedule countdown updates.
+
+    message_id MUST be a bot-owned message id (i.e. a message sent by the bot),
+    because we will edit it during the countdown.
+    """
+    target_time = _to_utc(target_time)
 
     job_name = f"timer:{chat_id}:{uuid.uuid4().hex}"
 
-    target_utc = _to_utc(target_time)
-
     entry = TimerEntry(
         chat_id=chat_id,
-        message_id=pin_message_id,
-        target_time=target_utc,
-        job_name=job_name,
+        target_time=target_time,
         message=message,
-        text=message,
-        last_text=None,
+        job_name=job_name,
+        message_id=message_id,
+        last_text="",  # will be set by command handler to avoid a pointless first edit
     )
 
-    add_timer(chat_id, entry)
+    add_timer(entry)
 
     now = datetime.now(timezone.utc)
-    delay = max(1, int((target_utc - now).total_seconds()))
+    remaining = int((entry.target_time - now).total_seconds())
 
-    # ❗ импорт внутри функции — чтобы не было circular import
-    from core.countdown import countdown_tick
+    # Start ticking soon (not only at the very end).
+    delay = choose_interval(max(remaining, 1))
+    context.job_queue.run_once(countdown_tick, delay, data=entry, name=job_name)
 
-    context.job_queue.run_once(
-        countdown_tick,
-        delay,
-        name=job_name,
-        data=entry,
-    )
-
-
-def cancel_last_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> bool:
-    entry = pop_last_timer(chat_id)
-    if not entry:
-        return False
-
-    for job in context.job_queue.get_jobs_by_name(entry.job_name):
-        job.schedule_removal()
-    return True
+    logger.info("Timer created: %s (remaining=%ss, first_delay=%ss)", job_name, remaining, delay)
+    return entry
 
 
 def cancel_all_timers(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> int:
+    """Cancel and remove all timers for chat_id. Returns how many were removed."""
     entries = get_timers(chat_id)
-    count = 0
+    if not entries:
+        return 0
 
-    for entry in entries:
-        for job in context.job_queue.get_jobs_by_name(entry.job_name):
+    jobs = context.job_queue.jobs()
+    removed = 0
+
+    for entry in list(entries):
+        job = next((j for j in jobs if j.name == entry.job_name), None)
+        if job:
             job.schedule_removal()
-        count += 1
+        removed += 1
 
     clear_timers(chat_id)
-    return count
+    logger.info("Canceled %s timers for chat_id=%s", removed, chat_id)
+    return removed

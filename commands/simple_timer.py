@@ -25,8 +25,22 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not update.effective_chat or not update.effective_message:
         return
 
+    raw = update.effective_message.text or ""
+
+    # --------------------------------------------------
+    # Flags
+    # --------------------------------------------------
+    # Support: /timer 10m tea --pin
+    # We keep the existing parser intact and strip only known flags.
+    tokens = raw.split()
+    pin = False
+    if "--pin" in tokens:
+        pin = True
+        tokens = [t for t in tokens if t != "--pin"]
+        raw = " ".join(tokens)
+
     try:
-        parsed = parse_timer_args(update.effective_message.text or "")
+        parsed = parse_timer_args(raw)
     except Exception:
         await update.effective_message.reply_text(
             "Формат: /timer 10m [сообщение]\n"
@@ -42,6 +56,15 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         text += f"\n{parsed.message}"
 
     sent = await update.effective_message.reply_text(text)
+
+    # Pin if requested (best-effort)
+    pin_message_id: int | None = None
+    if pin:
+        try:
+            await context.bot.pin_chat_message(chat_id=sent.chat_id, message_id=sent.message_id)
+            pin_message_id = sent.message_id
+        except Exception as e:
+            logger.warning("Pin failed: %s", e)
 
     # attach cancel button
     try:
@@ -65,4 +88,5 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         target_time=target_time,
         message=parsed.message,
         message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
+        pin_message_id=pin_message_id,
     )

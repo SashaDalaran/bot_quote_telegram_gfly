@@ -27,7 +27,7 @@ from commands.quotes import quote_command
 from commands.simple_timer import timer_command
 from commands.date_timer import timerdate_command
 
-from commands.cancel import cancel_command, cancel_callback
+from commands.cancel import cancel_command, cancel_callback, cancel_timer_callback
 
 from commands.holidays_cmd import holidays_command
 from commands.murloc_ai import murloc_ai_command
@@ -85,6 +85,9 @@ def main() -> None:
 
     # ✅ cancel menu + callbacks (из commands/cancel.py)
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
+    # Buttons under each timer message
+    app.add_handler(CallbackQueryHandler(cancel_timer_callback, pattern=r"^cancel_timer:"))
+    # Buttons from /cancel menu
     app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^(cancel_one:|cancel_all:)"))
 
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))

@@ -35,6 +35,14 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # ---- FINISH ----
     if remaining <= 0:
+        # If this timer message was pinned, unpin it on completion
+        pin_id = getattr(entry, "pin_message_id", None)
+        if pin_id:
+            try:
+                await context.bot.unpin_chat_message(chat_id=entry.chat_id, message_id=pin_id)
+            except Exception as e:
+                logger.warning("Unpin on finish failed: %s", e)
+
         try:
             text = "⏰ Time is up!"
             if entry_text:

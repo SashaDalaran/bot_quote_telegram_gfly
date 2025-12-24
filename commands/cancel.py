@@ -159,3 +159,56 @@ async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     await query.answer("Неизвестное действие", show_alert=True)
+
+
+async def cancel_timer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Cancel button under each timer message.
+
+    Callback data format: cancel_timer:<message_id>
+
+    This button is intentionally *not* admin-only: people expect the
+    inline "Cancel" under the timer to just work.
+    """
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
+    try:
+        _, msg_id_str = query.data.split(":", 1)
+        msg_id = int(msg_id_str)
+    except Exception:
+        await query.answer("Некорректные данные", show_alert=True)
+        return
+
+    # Where the button was pressed
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if not chat_id:
+        await query.answer("Не удалось определить чат", show_alert=True)
+        return
+
+    entry = next((t for t in list_timers(chat_id) if t.message_id == msg_id), None)
+    if not entry:
+        # Таймер уже был удалён / истёк
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await query.answer("Таймер уже не найден")
+        return
+
+    # If it's pinned, unpin it first
+    await _unpin_if_pinned(context, chat_id, entry.pin_message_id or msg_id)
+
+    remove_timer_job(context.job_queue, chat_id, msg_id)
+    remove_timer(chat_id, msg_id)
+
+    try:
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=msg_id,
+            text="⛔ Таймер отменён.",
+        )
+    except Exception as e:
+        logger.warning("Edit cancelled timer message failed: %s", e)
+
+    await query.answer("Ок")

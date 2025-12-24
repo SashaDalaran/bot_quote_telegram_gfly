@@ -21,6 +21,11 @@ def _cancel_kb(message_id: int) -> InlineKeyboardMarkup:
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     entry = context.job.data
 
+    # совместимость: раньше поле могло называться text
+    entry_text = getattr(entry, "message", None)
+    if entry_text is None:
+        entry_text = getattr(entry, "text", "")
+
     # если кто-то пометил как cancelled
     if getattr(entry, "cancelled", False):
         return
@@ -32,8 +37,8 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     if remaining <= 0:
         try:
             text = "⏰ Time is up!"
-            if getattr(entry, "text", ""):
-                text += f"\n{entry.text}"
+            if entry_text:
+                text += f"\n{entry_text}"
             await context.bot.edit_message_text(
                 chat_id=entry.chat_id,
                 message_id=entry.message_id,
@@ -52,8 +57,8 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # ---- BUILD TEXT ----
     new_text = f"⏰ Time left: {format_remaining(remaining)}"
-    if getattr(entry, "text", ""):
-        new_text += f"\n{entry.text}"
+    if entry_text:
+        new_text += f"\n{entry_text}"
 
     # не редактируем то же самое (иначе Telegram 'message is not modified')
     if getattr(entry, "last_text", None) == new_text:

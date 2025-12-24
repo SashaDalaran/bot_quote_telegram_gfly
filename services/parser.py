@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Tuple, Optional
 
 _DURATION_TOKEN_RE = re.compile(
@@ -92,7 +92,12 @@ def parse_datetime_utc(text: str, *, assume_tz=timezone.utc) -> datetime:
 
     s = text.strip().replace("T", " ")
 
-    fmts = ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S")
+    fmts = (
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%d.%m.%Y %H:%M",
+        "%d.%m.%Y %H:%M:%S",
+    )
     dt: Optional[datetime] = None
     for fmt in fmts:
         try:
@@ -121,13 +126,37 @@ def parse_timerdate_args(full_text: str, *, assume_tz=timezone.utc) -> Tuple[dat
     if not full_text:
         raise ValueError("Empty command text")
 
-    # /timerdate YYYY-MM-DD HH:MM [message...]
-    parts = full_text.split(maxsplit=3)
+    # /timerdate <date> <time> [<tz>] [message...]
+    # date formats supported:
+    #   - YYYY-MM-DD
+    #   - DD.MM.YYYY
+    # tz formats supported:
+    #   - +3
+    #   - +03
+    #   - +03:00
+    #   - -5
+    parts = full_text.split()
     if len(parts) < 3:
         raise ValueError("Date/time is missing")
 
-    dt_str = f"{parts[1]} {parts[2]}"
-    target = parse_datetime_utc(dt_str, assume_tz=assume_tz)
+    date_part = parts[1]
+    time_part = parts[2]
 
-    message = parts[3].strip() if len(parts) == 4 else ""
+    tz = assume_tz
+    msg_start = 3
+
+    # optional timezone offset token
+    if len(parts) >= 4:
+        m = re.fullmatch(r"([+-])(\d{1,2})(?::?(\d{2}))?", parts[3])
+        if m:
+            sign = -1 if m.group(1) == "-" else 1
+            hours = int(m.group(2))
+            minutes = int(m.group(3) or "0")
+            tz = timezone(sign * timedelta(hours=hours, minutes=minutes))
+            msg_start = 4
+
+    dt_str = f"{date_part} {time_part}"
+    target = parse_datetime_utc(dt_str, assume_tz=tz)
+
+    message = " ".join(parts[msg_start:]).strip() if len(parts) > msg_start else ""
     return target, message

@@ -112,3 +112,18 @@ def parse_date_time(args: List[str]) -> Tuple[datetime, Optional[str]]:
 # alias (если где-то импортируют старое имя)
 def parse_datetime_with_tz(args: List[str]) -> Tuple[datetime, Optional[str]]:
     return parse_date_time(args)
+# ------------------------------------------------------------------
+# Public API expected by commands/date_timer.py
+# ------------------------------------------------------------------
+
+def parse_date_time(args):
+    """
+    Accepts either:
+      - list[str] (context.args)
+      - str (full text)
+    Returns: (dt_utc, tz_name_or_none)
+    """
+    if isinstance(args, str):
+        args = args.split()
+
+    return parse_datetime_with_tz(args)

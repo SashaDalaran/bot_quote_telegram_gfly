@@ -25,18 +25,29 @@ def format_remaining_time(seconds: int) -> str:
 
 
 def choose_update_interval(remaining_seconds: int) -> int:
-    """How often we edit the message (seconds)."""
+    """
+    How often we update the countdown message.
+    """
     r = int(remaining_seconds)
 
-    if r <= 10:
+    if r <= 0:
         return 1
-    if r <= 60:
-        return 2
-    if r <= 10 * 60:
+
+    # < 1 minute -> every 1 second
+    if r < 60:
+        return 1
+
+    # 1..10 minutes -> every 5 seconds
+    if r < 10 * 60:
         return 5
-    if r <= 60 * 60:
-        return 10
-    return 30
+
+    # 10..60 minutes -> every 30 seconds
+    if r < 60 * 60:
+        return 30
+
+    # >= 1 hour -> every 60 seconds
+    return 60
+
 
 
 # ---- Backward-compatible aliases (на всякий случай) ----

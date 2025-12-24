@@ -21,18 +21,24 @@ def create_timer(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     target_time: datetime,
-    message_id: int,
+    # ✅ совместимость: где-то может быть message_id, где-то pin_message_id
+    message_id: Optional[int] = None,
+    pin_message_id: Optional[int] = None,
     message: Optional[str] = None,
 ) -> TimerEntry:
     if target_time.tzinfo is None:
         # treat naive as UTC
         target_time = target_time.replace(tzinfo=timezone.utc)
 
-    job_name = _make_job_name(chat_id, message_id)
+    mid = message_id if message_id is not None else pin_message_id
+    if mid is None:
+        raise ValueError("message_id (or pin_message_id) is required")
+
+    job_name = _make_job_name(chat_id, mid)
 
     entry = TimerEntry(
         chat_id=chat_id,
-        message_id=message_id,
+        message_id=mid,
         target_time=target_time.astimezone(timezone.utc),
         message=message,
         job_name=job_name,

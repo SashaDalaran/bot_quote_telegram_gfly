@@ -34,6 +34,7 @@ from commands.murloc_ai import murloc_ai_command
 
 from daily.banlu.banlu_daily import setup_banlu_daily
 from daily.holidays.holidays_daily import setup_holidays_daily
+from daily.birthday.birthday_daily import setup_birthday_daily
 
 
 logging.basicConfig(
@@ -96,6 +97,7 @@ def main() -> None:
     # daily jobs
     setup_banlu_daily(app)
     setup_holidays_daily(app)
+    setup_birthday_daily(app)
 
     app.add_error_handler(error_handler)
 

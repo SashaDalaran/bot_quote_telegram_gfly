@@ -4,17 +4,12 @@
 
 import logging
 import traceback
-from datetime import datetime, timezone
-from telegram.ext import CallbackQueryHandler
-from telegram.ext import CallbackQueryHandler
-from commands.cancel import cancel_callback
 
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
-    MessageHandler,
     ContextTypes,
     filters,
 )
@@ -32,7 +27,6 @@ from commands.quotes import quote_command
 from commands.simple_timer import timer_command
 from commands.date_timer import timerdate_command
 
-# ✅ /cancel + кнопки
 from commands.cancel import cancel_command, cancel_callback
 
 from commands.holidays_cmd import holidays_command
@@ -40,6 +34,7 @@ from commands.murloc_ai import murloc_ai_command
 
 from daily.banlu.banlu_daily import setup_banlu_daily
 from daily.holidays.holidays_daily import setup_holidays_daily
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -63,8 +58,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def _get_chat_timer_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
     """
-    Надёжно: берём jobs из JobQueue и фильтруем по job.data.chat_id.
-    Так же делает твой /cancel (кнопки), поэтому логика одинаковая.
+    Берём jobs из JobQueue и фильтруем по job.data.chat_id.
     """
     jobs = []
     for job in context.job_queue.jobs():
@@ -88,13 +82,6 @@ async def cancelall_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     for job in jobs:
         job.schedule_removal()
 
-    # опционально почистить store (если есть такие функции)
-    try:
-        from core.timers_store import remove_all_timers_for_chat  # если есть
-        remove_all_timers_for_chat(chat_id)
-    except Exception:
-        pass
-
     await update.message.reply_text(f"🧹 Отменил все таймеры в этом чате: {len(jobs)}")
 
 
@@ -117,14 +104,7 @@ def main() -> None:
     channels = filters.ChatType.CHANNEL
 
     # commands
-    app.add_handler(
-        CommandHandler(
-            "chat_id",
-            chat_id_command,
-            filters=private_and_groups | channels,
-        )
-    )
-
+    app.add_handler(CommandHandler("chat_id", chat_id_command, filters=private_and_groups | channels))
     app.add_handler(CommandHandler("start", start_command, filters=private_and_groups))
     app.add_handler(CommandHandler("help", help_command, filters=private_and_groups))
     app.add_handler(CommandHandler("quote", quote_command, filters=private_and_groups))
@@ -132,20 +112,14 @@ def main() -> None:
     app.add_handler(CommandHandler("timer", timer_command, filters=private_and_groups))
     app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
 
-    # ✅ cancel UI + callback
-    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^cancel_timer:"))
+    # ✅ cancel menu + callbacks (из commands/cancel.py)
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
     app.add_handler(CommandHandler("cancelall", cancelall_command, filters=private_and_groups))
     app.add_handler(CommandHandler("cancel_all", cancelall_command, filters=private_and_groups))
-
-    # callback data из cancel.py: cancel_one|... или cancel_all|...
-    app.add_handler(CallbackQueryHandler(cancel_callback,pattern=r"^(cancel_timer:|cancel_one\||cancel_all\|)")
-)
-
+    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^(cancel_one\||cancel_all\|)"))
 
     app.add_handler(CommandHandler("holidays", holidays_command, filters=private_and_groups))
     app.add_handler(CommandHandler("murloc_ai", murloc_ai_command, filters=private_and_groups))
-    app.add_handler(CallbackQueryHandler(cancel_callback, pattern=r"^cancel"))
 
     # daily jobs
     setup_banlu_daily(app)

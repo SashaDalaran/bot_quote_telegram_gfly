@@ -1,146 +1,124 @@
 # ==================================================
-# cancel.py — Cancel timer callbacks (/cancel + buttons)
+# commands/cancel.py — /cancel + inline cancel buttons
 # ==================================================
 
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from core.timers_store import pop_last_timer, get_timers, clear_timers
-
 logger = logging.getLogger(__name__)
 
 
-def _extract_job_name(data: str) -> str | None:
-    """
-    Supported callback_data formats:
-      - cancel_timer:<job_name>
-      - cancel_one|<job_name>
-      - cancel_all|<anything>   (job_name not needed)
-    """
-    if not data:
-        return None
-
-    if data.startswith("cancel_timer:"):
-        return data.split("cancel_timer:", 1)[1].strip() or None
-
-    if data.startswith("cancel_one|"):
-        return data.split("cancel_one|", 1)[1].strip() or None
-
-    return None
+def _get_chat_timer_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    jobs = []
+    for job in context.job_queue.jobs():
+        data = getattr(job, "data", None)
+        if getattr(data, "chat_id", None) == chat_id:
+            jobs.append(job)
+    return jobs
 
 
-def _remove_jobs_by_name(context: ContextTypes.DEFAULT_TYPE, job_name: str) -> int:
-    """
-    Removes jobs in PTB JobQueue by exact name.
-    Returns count removed.
-    """
-    if not job_name:
-        return 0
+def _cancel_jobs(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int | None = None) -> int:
+    jobs = _get_chat_timer_jobs(context, chat_id)
 
-    job_queue = context.application.job_queue
-    jobs = job_queue.get_jobs_by_name(job_name) or []
-    for j in jobs:
-        j.schedule_removal()
-    return len(jobs)
+    removed = 0
+    for job in jobs:
+        data = getattr(job, "data", None)
+        if message_id is not None and getattr(data, "message_id", None) != message_id:
+            continue
+        job.schedule_removal()
+        removed += 1
+
+    # опционально почистить store
+    try:
+        if message_id is None:
+            from core.timers_store import remove_all_timers_for_chat
+            remove_all_timers_for_chat(chat_id)
+        else:
+            from core.timers_store import remove_timer
+            remove_timer(chat_id, message_id)
+    except Exception:
+        pass
+
+    return removed
+
+
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cancel -> показать кнопки отмены."""
+    chat_id = update.effective_chat.id
+    jobs = _get_chat_timer_jobs(context, chat_id)
+
+    if not jobs:
+        await update.message.reply_text("Активных таймеров нет ✅")
+        return
+
+    # собираем уникальные message_id таймеров
+    message_ids = []
+    for job in jobs:
+        data = getattr(job, "data", None)
+        mid = getattr(data, "message_id", None)
+        if isinstance(mid, int) and mid not in message_ids:
+            message_ids.append(mid)
+
+    rows = []
+    for mid in message_ids[:20]:
+        rows.append([InlineKeyboardButton(f"❌ Отменить таймер (msg {mid})", callback_data=f"cancel_one|{mid}")])
+
+    rows.append([InlineKeyboardButton("🧹 Cancel ALL timers", callback_data=f"cancel_all|{chat_id}")])
+
+    await update.message.reply_text(
+        "Выбери, что отменить:",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
 
 
 async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handles inline button cancels.
-    """
+    """Обработчик inline cancel."""
     query = update.callback_query
     if not query:
         return
 
-    await query.answer()
     data = query.data or ""
+    await query.answer()
 
     chat_id = query.message.chat_id if query.message else None
     if chat_id is None:
         return
 
-    # ---------- Cancel ALL ----------
-    if data.startswith("cancel_all|") or data == "cancel_all":
-        timers = get_timers(chat_id)
-
-        removed_total = 0
-        for entry in timers:
-            job_name = getattr(entry, "job_name", None) or getattr(entry, "name", None)
-            if job_name:
-                removed_total += _remove_jobs_by_name(context, job_name)
-
-        clear_timers(chat_id)
-
+    # 1) cancel_timer:<message_id> (кнопка в самом таймере)
+    if data.startswith("cancel_timer:"):
         try:
-            await query.edit_message_text(f"❌ Cancelled all timers ({removed_total}).")
-        except Exception as e:
-            logger.warning("Failed to edit message after cancel_all: %s", e)
-        return
-
-    # ---------- Cancel ONE (by explicit job_name) ----------
-    job_name = _extract_job_name(data)
-
-    # If we didn't get a job name from button (edge-case), fallback to "last timer"
-    if not job_name:
-        entry = pop_last_timer(chat_id)
-        if not entry:
-            try:
-                await query.edit_message_text("⚠️ No active timers to cancel.")
-            except Exception:
-                pass
+            mid = int(data.split(":", 1)[1])
+        except Exception:
+            await query.edit_message_text("⚠️ Некорректные данные cancel.")
             return
-        job_name = getattr(entry, "job_name", None) or getattr(entry, "name", None)
 
-    removed = _remove_jobs_by_name(context, job_name)
+        removed = _cancel_jobs(context, chat_id, message_id=mid)
 
-    # Also try to remove this timer from store if it's still there (without breaking anything)
-    # We don't require timers_store changes: just filter the list in-place if possible.
-    try:
-        timers = get_timers(chat_id)
-        new_list = []
-        for t in timers:
-            t_name = getattr(t, "job_name", None) or getattr(t, "name", None)
-            if t_name != job_name:
-                new_list.append(t)
-        # rebuild store by clearing then re-registering remaining
-        # (keeps behaviour stable even if you cancel a non-last timer)
-        clear_timers(chat_id)
-        for t in new_list:
-            # timers_store.register_timer exists in твоём коде
-            from core.timers_store import register_timer
-            register_timer(chat_id, t)
-    except Exception as e:
-        logger.debug("Store cleanup skipped: %s", e)
-
-    try:
-        if removed > 0:
-            await query.edit_message_text("❌ Timer cancelled.")
-        else:
-            await query.edit_message_text("⚠️ Timer not found (maybe already finished).")
-    except Exception as e:
-        logger.warning("Failed to edit message after cancel_one: %s", e)
-
-
-async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Optional: /cancel command. Shows buttons: cancel last / cancel all.
-    """
-    chat_id = update.effective_chat.id
-    timers = get_timers(chat_id)
-
-    if not timers:
-        await update.message.reply_text("⚠️ No active timers.")
+        # пытаемся обновить текст именно таймер-сообщения
+        try:
+            await query.edit_message_text(f"❌ Timer cancelled. (removed jobs: {removed})")
+        except Exception:
+            # если не получилось edit (например, уже изменено) — просто шлём сообщение
+            await context.bot.send_message(chat_id=chat_id, text=f"❌ Timer cancelled. (removed jobs: {removed})")
         return
 
-    last = timers[-1]
-    job_name = getattr(last, "job_name", None) or getattr(last, "name", None) or ""
+    # 2) cancel_one|<message_id>
+    if data.startswith("cancel_one|"):
+        try:
+            mid = int(data.split("|", 1)[1])
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text="⚠️ Некорректные данные cancel_one.")
+            return
 
-    kb = [
-        [InlineKeyboardButton("❌ Cancel last", callback_data=f"cancel_timer:{job_name}")],
-        [InlineKeyboardButton("🧹 Cancel all", callback_data=f"cancel_all|{chat_id}")],
-    ]
-    await update.message.reply_text(
-        "Choose what to cancel:",
-        reply_markup=InlineKeyboardMarkup(kb),
-    )
+        removed = _cancel_jobs(context, chat_id, message_id=mid)
+        await context.bot.send_message(chat_id=chat_id, text=f"❌ Cancelled timer {mid}. (removed jobs: {removed})")
+        return
+
+    # 3) cancel_all|<chat_id>
+    if data.startswith("cancel_all|"):
+        removed = _cancel_jobs(context, chat_id, message_id=None)
+        await context.bot.send_message(chat_id=chat_id, text=f"🧹 Cancelled ALL timers. (removed jobs: {removed})")
+        return
+
+    logger.info("Unknown cancel callback data: %s", data)

@@ -1,20 +1,28 @@
-# core/models.py
-from __future__ import annotations
+# ==================================================
+# core/models.py — shared dataclasses
+# ==================================================
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+import uuid
 
 
 @dataclass
 class TimerEntry:
     chat_id: int
-    message_id: int
-    target_time: datetime  # MUST be UTC datetime
-    message: Optional[str] = None
+    message_id: int | None
+    target_time: datetime
+    message: str | None = None
+    pin_message_id: int | None = None
+    last_text: str | None = None
+    _uid: str = ""
 
-    # identification for JobQueue
-    job_name: Optional[str] = None
+    def __post_init__(self) -> None:
+        if not self._uid:
+            self._uid = uuid.uuid4().hex[:8]
 
-    # optimization: don't re-edit same text
-    last_text: Optional[str] = None
+    @property
+    def job_name(self) -> str:
+        # name виден в логах APScheduler как "timer:chat:msg:uid"
+        mid = self.message_id if self.message_id is not None else 0
+        return f"timer:{self.chat_id}:{mid}:{self._uid}"

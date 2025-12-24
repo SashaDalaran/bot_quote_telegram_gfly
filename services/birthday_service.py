@@ -4,205 +4,227 @@ import re
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
+# -----------------------------------------------------------------------------
+# Normalization helpers
+# -----------------------------------------------------------------------------
+
+# Common Cyrillic lookalikes that can sneak into tags like "Сhallenge".
+_CYR_TO_LAT = str.maketrans({
+    "С": "C",
+    "с": "c",
+    "О": "O",
+    "о": "o",
+    "А": "A",
+    "а": "a",
+    "Е": "E",
+    "е": "e",
+    "Р": "P",
+    "р": "p",
+    "Н": "H",
+    "н": "h",
+    "К": "K",
+    "к": "k",
+    "Т": "T",
+    "т": "t",
+    "М": "M",
+    "м": "m",
+    "В": "B",
+    "в": "b",
+    "Х": "X",
+    "х": "x",
+})
+
+
+def _norm_token(value: Any) -> str:
+    if value is None:
+        return ""
+    s = str(value).strip().translate(_CYR_TO_LAT)
+    s = " ".join(s.split())
+    return s.lower()
+
+
+# -----------------------------------------------------------------------------
+# Data loading
+# -----------------------------------------------------------------------------
+
 
 def _birthday_file_path() -> str:
-    # project root at runtime => data/birthday.json
+    """Path to birthday + guild events json file (relative to project root)."""
     return os.path.join("data", "birthday.json")
 
 
 def _strip_loose_json_list(text: str) -> str:
     """Turn a 'loose JSON' list into valid JSON.
 
-    Accepts files like:
-      # comment
-      { ... },
-      { ... },
+    Supports files that look like:
+        # comment
+        { ... },
+        { ... },
 
-    i.e. no surrounding [] and optional trailing commas.
+    We remove comment lines and wrap into [ ... ].
     """
-    # Remove full-line comments and empty lines
     lines: List[str] = []
     for line in text.splitlines():
-        if line.lstrip().startswith("#"):
-            continue
-        if not line.strip():
+        stripped = line.strip()
+        if stripped.startswith("#") or stripped.startswith("//"):
             continue
         lines.append(line)
 
-    cleaned = "\n".join(lines).strip()
-    if not cleaned:
-        return "[]"
+    cleaned = "\n".join(lines)
+    cleaned = re.sub(r",\s*]", "]", cleaned)
+    cleaned = cleaned.strip()
 
-    # If it's not already a JSON array, wrap it.
-    if not cleaned.lstrip().startswith("["):
-        cleaned = "[\n" + cleaned + "\n]"
+    if not cleaned.startswith("["):
+        cleaned = f"[{cleaned}]"
 
-    # Remove trailing commas before array close
-    cleaned = re.sub(r",\s*\]", "]", cleaned)
-    # Also remove trailing commas at EOF (just in case)
-    cleaned = re.sub(r",\s*$", "", cleaned)
     return cleaned
 
 
 def load_birthday_events(path: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Load events from data/birthday.json.
-
-    Expected per-item schema (same spirit as holidays JSON):
-      {
-        "date": "MM-DD" | "MM-DD:MM-DD",
-        "name": str,
-        "category": [str, ...],
-        "countries": [str, ...]
-      }
-    """
     path = path or _birthday_file_path()
-    if not os.path.exists(path):
-        return []
-
-    with open(path, "r", encoding="utf-8") as f:
-        raw = f.read()
 
     try:
-        data = json.loads(_strip_loose_json_list(raw))
-    except Exception:
-        # If something is off, fail safe (no crash of the bot)
+        raw_text = open(path, "r", encoding="utf-8").read()
+    except FileNotFoundError:
         return []
+
+    raw_text = raw_text.strip()
+    if not raw_text:
+        return []
+
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(_strip_loose_json_list(raw_text))
+        except json.JSONDecodeError:
+            return []
+
+    # allow either: [ {...}, {...} ]  OR  {"events": [ ... ]}
+    if isinstance(data, dict):
+        data = data.get("events", [])
 
     if not isinstance(data, list):
         return []
 
-    out: List[Dict[str, Any]] = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        if not item.get("date") or not item.get("name"):
-            continue
-        # Ensure lists exist
-        item.setdefault("category", [])
-        item.setdefault("countries", [])
-        out.append(item)
-    return out
+    return [e for e in data if isinstance(e, dict)]
+
+
+# -----------------------------------------------------------------------------
+# Date parsing / matching
+# -----------------------------------------------------------------------------
 
 
 def _parse_mmdd(mmdd: str) -> Optional[Tuple[int, int]]:
-    mmdd = mmdd.strip()
-    if not re.fullmatch(r"\d{2}-\d{2}", mmdd):
+    m = re.fullmatch(r"\s*(\d{2})-(\d{2})\s*", mmdd)
+    if not m:
         return None
-    m, d = mmdd.split("-")
-    month = int(m)
-    day = int(d)
-    if not (1 <= month <= 12 and 1 <= day <= 31):
-        return None
-    return month, day
+    return int(m.group(1)), int(m.group(2))
 
 
-def _to_doy(month: int, day: int) -> int:
-    # Use a non-leap year anchor.
-    return date(2001, month, day).timetuple().tm_yday
-
-
-def _is_today_in_range(today_mmdd: str, start_mmdd: str, end_mmdd: str) -> bool:
-    t = _parse_mmdd(today_mmdd)
-    s = _parse_mmdd(start_mmdd)
-    e = _parse_mmdd(end_mmdd)
-    if not t or not s or not e:
+def event_active_on(date_str: str, today: date) -> bool:
+    """True if an event is active on the given 'today' date."""
+    ds = (date_str or "").strip()
+    if not ds:
         return False
 
-    t_doy = _to_doy(*t)
-    s_doy = _to_doy(*s)
-    e_doy = _to_doy(*e)
+    # single day
+    if ":" not in ds:
+        parsed = _parse_mmdd(ds)
+        if not parsed:
+            return False
+        month, day = parsed
+        return today.month == month and today.day == day
 
-    if s_doy <= e_doy:
-        return s_doy <= t_doy <= e_doy
-    # Wraps over New Year: e.g. 12-19:01-20
-    return (t_doy >= s_doy) or (t_doy <= e_doy)
+    # range
+    start_s, end_s = ds.split(":", 1)
+    start = _parse_mmdd(start_s)
+    end = _parse_mmdd(end_s)
+    if not start or not end:
+        return False
+
+    sm, sd = start
+    em, ed = end
+    wraps_year = (em, ed) < (sm, sd)
+
+    try:
+        if not wraps_year:
+            start_date = date(today.year, sm, sd)
+            end_date = date(today.year, em, ed)
+            return start_date <= today <= end_date
+
+        # wraps across year boundary, e.g. 12-19:01-20
+        if (today.month, today.day) <= (em, ed):
+            start_date = date(today.year - 1, sm, sd)
+            end_date = date(today.year, em, ed)
+        else:
+            start_date = date(today.year, sm, sd)
+            end_date = date(today.year + 1, em, ed)
+
+        return start_date <= today <= end_date
+    except ValueError:
+        # invalid calendar date
+        return False
 
 
-def event_active_on(event_date: str, today: Optional[date] = None) -> bool:
-    today = today or date.today()
-    today_mmdd = today.strftime("%m-%d")
-    event_date = (event_date or "").strip()
-
-    if ":" in event_date:
-        start, end = [p.strip() for p in event_date.split(":", 1)]
-        return _is_today_in_range(today_mmdd, start, end)
-    return event_date == today_mmdd
-
-
-def _norm_cat(cat: str) -> str:
-    # Handle Cyrillic 'С' in 'Сhallenge'
-    return (cat or "").strip().lower().replace("с", "c")
+# -----------------------------------------------------------------------------
+# Grouping
+# -----------------------------------------------------------------------------
 
 
 def _event_kind(event: Dict[str, Any]) -> str:
-    """Map an event to one of the 3 user-facing buckets.
+    """Classify event into: challenge | hero | birthday | other."""
+    categories = [_norm_token(x) for x in (event.get("category") or []) if x]
+    countries = [_norm_token(x) for x in (event.get("countries") or []) if x]
 
-    Rules tuned to your chosen file format:
-      1) Date range ("MM-DD:MM-DD") => either challenge or hero.
-         - If category contains 'challenge' (incl. Cyrillic 'Сhallenge') => challenges
-         - Otherwise => heroes
-      2) Single date ("MM-DD") => birthdays
-    """
+    if "birthday" in categories:
+        return "birthday"
 
-    date_str = str(event.get("date", ""))
-    is_range = ":" in date_str
+    if "challenge" in categories or "challenge" in countries:
+        return "challenge"
 
-    cats = event.get("category") or []
-    if isinstance(cats, str):
-        cats = [cats]
-    norm = {_norm_cat(c) for c in cats if isinstance(c, str)}
+    if "accept" in categories or "hero" in categories:
+        return "hero"
 
-    if is_range:
-        return "challenges" if "challenge" in norm else "heroes"
-    return "birthdays"
+    # soft fallback: a single-day murloc entry is very likely a birthday
+    if "murloc" in countries and ":" not in str(event.get("date", "")):
+        return "birthday"
+
+    return "other"
 
 
 def get_today_birthday_payload(
-    today: Optional[date] = None,
     events: Optional[List[Dict[str, Any]]] = None,
-) -> Optional[Dict[str, List[Dict[str, str]]]]:
-    """Build payload for today's birthday message.
+    today: Optional[date] = None,
+) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    """Return payload for birthday_format.format_birthday_message.
 
-    - Supports injecting `events` for tests/CLI runs.
-    - If `events` is not provided, data will be loaded from data/birthday.json.
+    Returns None when there is nothing to send.
     """
+    today = today or date.today()
+    events = events if events is not None else load_birthday_events()
 
-    if today is None:
-        today = date.today()
+    challenges: List[Dict[str, Any]] = []
+    heroes: List[Dict[str, Any]] = []
+    birthdays: List[Dict[str, Any]] = []
 
-    if events is None:
-        events = load_birthdays()
-
-    payload: Dict[str, List[Dict[str, str]]] = {
-        "challenges": [],
-        "heroes": [],
-        "events": [],
-    }
-
-    for entry in events:
-        if not entry.get("date"):
+    for event in events:
+        if not event_active_on(str(event.get("date", "")), today):
             continue
 
-        try:
-            day, month = map(int, str(entry["date"]).split("."))
-        except Exception:
-            continue
+        kind = _event_kind(event)
+        if kind == "challenge":
+            challenges.append(event)
+        elif kind == "hero":
+            heroes.append(event)
+        elif kind == "birthday":
+            birthdays.append(event)
 
-        if today.day == day and today.month == month:
-            item = {
-                "name": str(entry.get("name", "")).strip(),
-                "age": str(entry.get("age", "")).strip(),
-                "country": str(entry.get("country", "")).strip(),
-                "flag": str(entry.get("flag", "")).strip(),
-            }
-
-            category = str(entry.get("category", "events")).strip().lower()
-            if category not in payload:
-                category = "events"
-
-            payload[category].append(item)
-
-    if not any(payload.values()):
+    if not (challenges or heroes or birthdays):
         return None
 
-    return payload
+    return {
+        "challenges": challenges,
+        "heroes": heroes,
+        "birthdays": birthdays,
+    }

@@ -62,6 +62,20 @@ UI = {
 
 
 # ------------------------------
+# Formatting helpers
+# ------------------------------
+
+def _ensure_blank(lines: List[str]) -> None:
+    """Append a single blank line if the last line is not blank.
+
+    We use this to guarantee consistent spacing between sections
+    without creating double-empty lines.
+    """
+    if lines and lines[-1] != "":
+        lines.append("")
+
+
+# ------------------------------
 # Date helpers
 # ------------------------------
 
@@ -189,7 +203,6 @@ def _emoji_for_category(categories: List[str]) -> str:
     return "".join(out)
 
 
-
 def _emoji_for_country(countries: List[str]) -> str:
     """Service function:  emoji for country."""
     if not countries:
@@ -200,7 +213,6 @@ def _emoji_for_country(countries: List[str]) -> str:
         if emoji:
             out.append(emoji)
     return "".join(out)
-
 
 
 def _as_list(value: Any) -> List[str]:
@@ -313,8 +325,11 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     # Guild Challenge
     # -------------------
     lines.append("🏆 Guild Challenge")
+    _ensure_blank(lines)  # always separate header from content
+
     if not challenges:
         lines.append("↳ no active challenges")
+        _ensure_blank(lines)  # ensure spacing before the next section
     else:
         for ev in challenges:
             name = str(ev.get("name", "")).strip()
@@ -339,12 +354,17 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
                 )
             lines.append("")
 
+        # one consistent separator between sections
+        _ensure_blank(lines)
+
     # -------------------
     # Heroes
     # -------------------
     lines.append("🦸 Heroes")
+
     if not heroes:
         lines.append("↳ no heroes found")
+        _ensure_blank(lines)  # ensure spacing before the next section
     else:
         for ev in heroes:
             name = str(ev.get("name", "")).strip()
@@ -371,10 +391,14 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
                 )
             lines.append("")
 
+        # one consistent separator between sections
+        _ensure_blank(lines)
+
     # -------------------
     # Birthdays
     # -------------------
     lines.append(f"{cake} Birthdays")
+
     if not birthdays:
         lines.append("↳ no birthdays found")
     else:
@@ -433,7 +457,6 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
                             lines.append(country_emojis)
                     else:
                         lines.append(" ".join([str(c).strip() for c in countries if str(c).strip()]))
-
 
     # Trim trailing blanks
     while lines and lines[-1] == "":

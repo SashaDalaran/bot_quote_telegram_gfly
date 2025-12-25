@@ -228,7 +228,7 @@ def _as_list(value: Any) -> List[str]:
 def _emoji_for_categories_all(categories: List[str]) -> str:
     emojis: List[str] = []
     for token in categories:
-        key = _norm_token(token)
+        key = _norm_key(token)
         emoji = _CATEGORY_EMOJIS_NORM.get(key)
         if emoji:
             emojis.append(emoji)
@@ -238,7 +238,7 @@ def _emoji_for_categories_all(categories: List[str]) -> str:
 def _emoji_for_countries_all(countries: List[str]) -> str:
     emojis: List[str] = []
     for token in countries:
-        key = _norm_token(token)
+        key = _norm_key(token)
         emoji = _COUNTRY_FLAGS_NORM.get(key)
         if emoji:
             emojis.append(emoji)
@@ -400,6 +400,8 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
             else:
                 # If all tokens were resolved to emojis (e.g. 'murloc'), don't print raw keys like 'murloc'.
                 unresolved: List[str] = []
+                is_murloc = any(_norm_key(c) == "murloc" for c in countries)
+
                 for c in countries:
                     raw = str(c).strip()
                     k = _norm_token(c)
@@ -409,13 +411,18 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
                         unresolved.append(raw)
 
                 if unresolved:
-                    lines.append(f"{country_emojis} {' '.join(unresolved)}".strip())
+                    # Keep unresolved raw keys visible
+                    lines.append(" ".join([country_emojis, " ".join(unresolved)]).strip())
                 else:
                     # Only emojis (clean)
                     if country_emojis:
-                        lines.append(country_emojis)
+                        if is_murloc:
+                            lines.append(f"{country_emojis} Mrgl Mrgl!".strip())
+                        else:
+                            lines.append(country_emojis)
                     else:
-                        lines.append(' '.join([str(c).strip() for c in countries if str(c).strip()]))
+                        lines.append(" ".join([str(c).strip() for c in countries if str(c).strip()]))
+
 
     # Trim trailing blanks
     while lines and lines[-1] == "":

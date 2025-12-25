@@ -1,31 +1,20 @@
 # ==================================================
-# daily/holidays/holidays_daily.py — Daily Holidays Job
+# daily/holidays/holidays_daily.py — Holidays Daily Job
 # ==================================================
 #
-# This module defines a scheduled daily job
-# that sends a list of today's holidays to
-# one or more Telegram channels.
+# Scheduled daily job that posts today's holidays to configured channels.
 #
-# Schedule:
-# - Daily message at 10:01 (local timezone)
-# - One-time catch-up message shortly after bot startup
+# Layer: Daily
 #
 # Responsibilities:
-# - Determine the current date in the configured timezone
-# - Retrieve holidays for the current date
-# - Format the holidays into a single message
-# - Send the message to all configured channels
-# - Store the last sent date in bot_data
+# - Schedule recurring jobs via JobQueue
+# - Load/format content via services
+# - Send messages to configured channels with minimal side effects
 #
-# IMPORTANT:
-# - This module contains NO business logic.
-# - Holiday calculation is handled by:
-#     services/holidays_service.py
-# - Message formatting is handled by:
-#     services/holidays_format.py
+# Boundaries:
+# - Daily jobs are orchestration: avoid putting domain logic here—keep it in services/core.
 #
 # ==================================================
-
 import os
 from datetime import time, timezone, timedelta, datetime
 
@@ -69,6 +58,7 @@ HOLIDAYS_CHANNEL_IDS = parse_chat_ids("HOLIDAYS_CHANNEL_ID")
 async def send_holidays_daily(context: ContextTypes.DEFAULT_TYPE):
 
     # Do nothing if no target channels are configured
+    """JobQueue callback: execute the daily task and post to configured channels."""
     if not HOLIDAYS_CHANNEL_IDS:
         return
 
@@ -112,6 +102,7 @@ def setup_holidays_daily(application: Application):
     # A small offset from Ban’Lu (10:00) is intentional
     # to avoid simultaneous message sending.
     #
+    """Register the recurring JobQueue schedule for this daily task."""
     application.job_queue.run_daily(
         send_holidays_daily,
         time=time(hour=10, minute=1, tzinfo=TZ),

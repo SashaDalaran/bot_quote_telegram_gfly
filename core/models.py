@@ -1,7 +1,21 @@
 # ==================================================
-# core/models.py — shared dataclasses
+# core/models.py — Shared Data Models
 # ==================================================
-
+#
+# Dataclasses / typed structures shared between layers (timers, holidays, guild events).
+#
+# Layer: Core
+#
+# Responsibilities:
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
+#
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
+#
+# ==================================================
 from dataclasses import dataclass
 from datetime import datetime
 import uuid
@@ -18,11 +32,13 @@ class TimerEntry:
     _uid: str = ""
 
     def __post_init__(self) -> None:
+        """Core utility:   post init  ."""
         if not self._uid:
             self._uid = uuid.uuid4().hex[:8]
 
     @property
     def job_name(self) -> str:
-        # name виден в логах APScheduler как "timer:chat:msg:uid"
+        # name visible in APScheduler logs, e.g. "timer:chat:msg:uid"
+        """Core utility: job name."""
         mid = self.message_id if self.message_id is not None else 0
         return f"timer:{self.chat_id}:{mid}:{self._uid}"

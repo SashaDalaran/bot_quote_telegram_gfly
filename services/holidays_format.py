@@ -2,22 +2,20 @@
 # services/holidays_format.py — Holidays Message Formatter
 # ==================================================
 #
-# This module is responsible for converting raw holiday
-# data into a human-readable Telegram message.
+# Formats holiday entries into Telegram-friendly text blocks.
+#
+# Layer: Services
 #
 # Responsibilities:
-# - Take a list of holiday objects
-# - Resolve country flags and category emojis
-# - Build a clean, readable, multiline message
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
 #
-# IMPORTANT:
-# - This module contains NO Telegram API code.
-# - It only formats text.
-# - All emojis and mappings are defined in:
-#     services/holidays_flags.py
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
 import re
 from typing import List, Dict
 
@@ -75,6 +73,7 @@ Holiday = Dict[str, object]
 def format_holidays_message(holidays: List[Holiday]) -> str:
 
     # Message header
+    """Service function: format holidays message."""
     lines = ["🎉 Today’s Holidays", ""]
 
     for holiday in holidays:

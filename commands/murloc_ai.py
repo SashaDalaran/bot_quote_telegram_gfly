@@ -2,25 +2,20 @@
 # commands/murloc_ai.py — Murloc AI Wisdom Command
 # ==================================================
 #
-# This module defines a fun, character-driven command
-# that generates randomized "Murloc wisdom" phrases.
+# User-facing /murloc_ai handler; generates a random 'Murloc wisdom' message from text fragments.
 #
-# Command:
-# - /murloc_ai → receive a philosophical message
-#                spoken in true murloc style 🐸
+# Layer: Commands
 #
 # Responsibilities:
-# - Load phrase fragments from data files
-# - Generate a randomized phrase
-# - Cache loaded data for performance
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - Phrase data is loaded lazily on first use
-# - Loaded data is cached in context.bot_data
-# - This module contains no business logic
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 import random
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -56,6 +51,7 @@ def generate_murloc_phrase(
 ) -> str:
 
     # Guard against missing or empty data files
+    """Command handler: generate murloc phrase."""
     if not (starts and middles and ends):
         return "❌ Murloc AI wisdom database is missing."
 
@@ -91,6 +87,7 @@ async def murloc_ai_command(
     # Data is cached in bot_data to avoid
     # repeated file I/O on each command call.
     #
+    """Handle the /murloc_ai command."""
     if "murloc_data" not in context.bot_data:
         context.bot_data["murloc_data"] = {
             "starts": load_lines(MURLOC_STARTS_FILE),

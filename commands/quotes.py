@@ -2,23 +2,20 @@
 # commands/quotes.py — Random Quote Command
 # ==================================================
 #
-# This module defines a simple user-facing command
-# for displaying a random quote.
+# User-facing /quote handler; returns a random quote from the preloaded dataset.
 #
-# Command:
-# - /quote → sends a random quote from the loaded dataset
+# Layer: Commands
 #
 # Responsibilities:
-# - Retrieve cached quotes from bot_data
-# - Delegate quote selection to the service layer
-# - Send a formatted reply to the user
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - This module does NOT load quote files
-# - Quote loading and selection logic lives in services
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -36,6 +33,7 @@ async def quote_command(
 ):
     # Quotes are expected to be preloaded
     # and stored in bot_data at application startup
+    """Handle the /quote command."""
     quotes = context.bot_data.get("quotes", [])
 
     quote = get_random_quote(quotes)

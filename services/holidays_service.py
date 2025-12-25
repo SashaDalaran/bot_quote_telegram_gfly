@@ -1,23 +1,21 @@
 # ==================================================
-# services/holidays_service.py — Holidays Domain Service
+# services/holidays_service.py — Holidays Service
 # ==================================================
 #
-# This module contains all domain-level logic related
-# to holidays.
+# Loads static and dynamic holidays, resolves today's holidays, and returns normalized holiday entries.
+#
+# Layer: Services
 #
 # Responsibilities:
-# - Load static holidays from JSON files
-# - Load dynamic (calculated) holidays
-# - Normalize holiday data into a single structure
-# - Provide helpers to retrieve holidays for a given date
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
 #
-# IMPORTANT:
-# - This module contains NO Telegram-specific code.
-# - It operates purely on dates and data structures.
-# - Formatting and delivery are handled elsewhere.
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
 import json
 import logging
 from datetime import date, datetime
@@ -53,6 +51,7 @@ HOLIDAYS_PATH = Path("data/holidays")
 # relative to the provided 'today' value.
 #
 def load_static_holidays(today: date) -> List[Holiday]:
+    """Service function: load static holidays."""
     holidays: List[Holiday] = []
 
     if not HOLIDAYS_PATH.exists():
@@ -109,6 +108,7 @@ def load_static_holidays(today: date) -> List[Holiday]:
 # The result is a single, sorted list of holidays.
 #
 def load_all_holidays(today: date | None = None) -> List[Holiday]:
+    """Service function: load all holidays."""
     if today is None:
         today = date.today()
 
@@ -140,6 +140,7 @@ def load_all_holidays(today: date | None = None) -> List[Holiday]:
 # Returns only holidays that occur on the given day.
 #
 def get_today_holidays(today: date | None = None) -> List[Holiday]:
+    """Service function: get today holidays."""
     if today is None:
         today = date.today()
 

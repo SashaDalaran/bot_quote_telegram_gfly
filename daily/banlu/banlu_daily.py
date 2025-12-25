@@ -1,5 +1,20 @@
-# daily/banlu/banlu_daily.py
-
+# ==================================================
+# daily/banlu/banlu_daily.py — Ban'Lu Daily Job
+# ==================================================
+#
+# Scheduled daily job that posts a Ban'Lu quote to configured channels.
+#
+# Layer: Daily
+#
+# Responsibilities:
+# - Schedule recurring jobs via JobQueue
+# - Load/format content via services
+# - Send messages to configured channels with minimal side effects
+#
+# Boundaries:
+# - Daily jobs are orchestration: avoid putting domain logic here—keep it in services/core.
+#
+# ==================================================
 import logging
 import os
 import asyncio
@@ -33,12 +48,14 @@ LAST_SENT_KEY = "banlu_last_sent"
 # ==================================================
 
 def _already_sent_today(context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """JobQueue callback: execute the daily task and post to configured channels."""
     last: date | None = context.bot_data.get(LAST_SENT_KEY)
     today = datetime.now(TZ).date()
     return last == today
 
 
 def _mark_sent_today(context: ContextTypes.DEFAULT_TYPE):
+    """JobQueue callback: execute the daily task and post to configured channels."""
     context.bot_data[LAST_SENT_KEY] = datetime.now(TZ).date()
 
 
@@ -66,7 +83,8 @@ async def _send_with_retry(context: ContextTypes.DEFAULT_TYPE, chat_id: int, tex
 
 
 async def send_banlu_daily(context: ContextTypes.DEFAULT_TYPE):
-    # ❌ защита от дубля
+    # Duplicate protection
+    """JobQueue callback: execute the daily task and post to configured channels."""
     if _already_sent_today(context):
         return
 
@@ -93,14 +111,15 @@ async def send_banlu_daily(context: ContextTypes.DEFAULT_TYPE):
 # ==================================================
 
 def setup_banlu_daily(application: Application):
-    # 📅 основной ежедневный job
+    # Main daily job schedule
+    """Register the recurring JobQueue schedule for this daily task."""
     application.job_queue.run_daily(
         send_banlu_daily,
         time=time(hour=10, minute=0, tzinfo=TZ),
         name="banlu_daily",
     )
 
-    # ⏱ catch-up только если реально не отправляли
+    # Catch-up only if we truly did not post yet
     application.job_queue.run_once(
         send_banlu_daily,
         when=5,

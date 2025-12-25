@@ -1,7 +1,21 @@
 # ==================================================
-# commands/simple_timer.py — /timer
+# commands/simple_timer.py — Simple Countdown Timer Command
 # ==================================================
-
+#
+# User-facing /timer handler; parses a relative duration and schedules a countdown timer.
+#
+# Layer: Commands
+#
+# Responsibilities:
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
+#
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
+#
+# ==================================================
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -43,8 +57,8 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         parsed = parse_timer_args(raw)
     except Exception:
         await update.effective_message.reply_text(
-            "Формат: /timer 10m [сообщение]\n"
-            "Примеры: /timer 5m, /timer 1h 30m чай"
+            "Format: /timer 10m [message]\n"
+            "Examples: /timer 5m, /timer 1h 30m tea"
         )
         return
 
@@ -80,13 +94,13 @@ async def timer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.warning("Failed to set cancel button: %s", e)
 
     # IMPORTANT:
-    # твой create_timer (по предыдущей ошибке) НЕ принимает message_id,
-    # поэтому используем pin_message_id
+    # NOTE: core.create_timer in this repo does not accept message_id,
+    # so we reuse pin_message_id for backward compatibility.
     create_timer(
         context=context,
         chat_id=sent.chat_id,
         target_time=target_time,
         message=parsed.message,
-        message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
+        message_id=sent.message_id,  # This is the message that will be edited by the countdown engine.
         pin_message_id=pin_message_id,
     )

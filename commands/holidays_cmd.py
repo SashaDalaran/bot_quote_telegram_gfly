@@ -2,24 +2,20 @@
 # commands/holidays_cmd.py — Holidays Listing Command
 # ==================================================
 #
-# This module defines the user-facing command
-# for displaying upcoming holidays.
+# User-facing /holidays handler; prints a short list of upcoming holidays.
 #
-# Command:
-# - /holidays → shows a short list of upcoming holidays
+# Layer: Commands
 #
 # Responsibilities:
-# - Retrieve holiday data from the service layer
-# - Format each holiday into a readable message block
-# - Send a single combined message to the user
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - This module contains NO holiday calculation logic
-# - It relies entirely on services.holidays_service
-# - Formatting here is lightweight and command-specific
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -43,6 +39,7 @@ def format_holiday(holiday: dict) -> str:
     # --------------------------------------------------
     # Country / flag resolution
     # --------------------------------------------------
+    """Command handler: format holiday."""
     country = holiday["countries"][0] if holiday["countries"] else ""
     flag = COUNTRY_FLAGS.get(country, "🌍")
 
@@ -86,6 +83,7 @@ async def holidays_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    """Handle the /holidays command."""
     holidays = load_all_holidays()
 
     if not holidays:

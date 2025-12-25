@@ -1,7 +1,21 @@
 # ==================================================
-# core/timers.py — Timer creation helper
+# core/timers.py — Timer Runtime Management
 # ==================================================
-
+#
+# Low-level timer scheduling helpers: create, cancel, list timers via JobQueue and runtime store.
+#
+# Layer: Core
+#
+# Responsibilities:
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
+#
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
+#
+# ==================================================
 import logging
 from datetime import datetime, timezone
 
@@ -21,18 +35,18 @@ def create_timer(
     message: str | None = None,
     *,
     message_id: int | None = None,
-    pin_message_id: int | None = None,  # оставил для совместимости (если где-то ещё используется)
+    pin_message_id: int | None = None,  # kept for backwards compatibility (in case older code still uses it)
 ) -> TimerEntry:
     """
-    Создаёт таймер и запускает первый тик countdown.
+    Create a timer entry and schedule the first countdown tick.
 
-    ВАЖНО:
-    - message_id: это ID сообщения таймера, которое мы будем edit'ить
-    - pin_message_id: опционально, оставлен чтобы не ломать старый код
+    Important:
+    - message_id: the timer message ID that will be edited by the countdown engine
+    - pin_message_id: optional, kept for backwards compatibility with older code paths
     """
 
     if target_time.tzinfo is None:
-        # чтобы не было сюрпризов, приводим к UTC
+        # Normalize to UTC to avoid timezone surprises in comparisons.
         target_time = target_time.replace(tzinfo=timezone.utc)
 
     entry = TimerEntry(
@@ -46,7 +60,7 @@ def create_timer(
 
     add_timer(entry)
 
-    # Первый тик — почти сразу
+    # First tick: schedule almost immediately.
     context.job_queue.run_once(
         countdown_tick,
         when=0.5,
@@ -63,17 +77,17 @@ def remove_timer_job(
     chat_id: int,
     message_id: int,
 ) -> None:
-    """Удаляет jobs таймера из JobQueue/APS cheduler.
+    """Remove timer jobs from JobQueue / APScheduler.
 
-    В python-telegram-bot JobQueue использует APScheduler. При каждом тике мы
-    пересоздаём job через `run_once(..., name=entry.job_name)`. Поэтому у
-    конкретного таймера может быть 0..N jobs с одинаковым `name` и разными `id`.
+    PTB JobQueue uses APScheduler under the hood. On every tick we may re-schedule the job
+    using `run_once(..., name=entry.job_name)`. As a result, a single logical timer can have
+    0..N APScheduler jobs that share the same `name` but have different internal IDs.
 
-    Мы удаляем *все* jobs с name==entry.job_name.
+    We therefore remove *all* jobs with name == entry.job_name.
     """
 
     try:
-        # Локальный импорт, чтобы не поймать круговые импорты.
+        # Local import to avoid circular imports.
         from core.timers_store import list_timers
 
         entry = next(
@@ -85,7 +99,7 @@ def remove_timer_job(
 
         job_name = entry.job_name
 
-        # Предпочтительно через API PTB
+        # Preferred approach: use the PTB JobQueue API.
         jobs = []
         try:
             jobs = job_queue.get_jobs_by_name(job_name)
@@ -104,7 +118,7 @@ def remove_timer_job(
                         pass
             return
 
-        # Fallback: напрямую в APScheduler
+        # Fallback: remove directly from the underlying APScheduler instance.
         try:
             scheduler = getattr(job_queue, "scheduler", None)
             if not scheduler:

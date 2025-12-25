@@ -2,6 +2,19 @@
 # fly.toml — Fly.io Application Configuration
 # ==================================================
 #
+# This file configures deployment for Fly.io Machines.
+# It is intentionally minimal: build happens via Dockerfile.
+#
+# Notes:
+# - Secrets are managed via `fly secrets set ...`
+# - If you change the internal port, update Fly services accordingly
+#
+# ==================================================
+
+# ==================================================
+# fly.toml — Fly.io Application Configuration
+# ==================================================
+#
 # This file defines how the Telegram bot is built,
 # deployed and executed on Fly.io infrastructure.
 #

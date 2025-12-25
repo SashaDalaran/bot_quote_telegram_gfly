@@ -2,24 +2,20 @@
 # commands/chat_id.py — Chat ID Utility Command
 # ==================================================
 #
-# This module defines a simple utility command
-# used to display the current chat ID.
+# User-facing /chat_id handler; prints the current chat ID (useful for channel configuration).
 #
-# Command:
-# - /chat_id → replies with the numeric chat ID
+# Layer: Commands
 #
-# Use cases:
-# - Bot configuration
-# - Channel / group setup
-# - Environment variable preparation
+# Responsibilities:
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - parse_mode is explicitly disabled
-#   to ensure the chat ID is displayed
-#   as plain text without formatting issues.
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -35,9 +31,10 @@ async def chat_id_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-    # Админ‑only: чтобы в группах ID не выдавался всем подряд
+    # Admin-only: avoid leaking chat IDs to regular members in group chats.
+    """Handle the /chat_id command."""
     if not await is_admin(update, context):
-        await update.message.reply_text("⛔ Эта команда доступна только администраторам.")
+        await update.message.reply_text("⛔ This command is available to administrators only.")
         return
 
     chat = update.effective_chat

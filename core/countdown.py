@@ -1,5 +1,21 @@
-# core/countdown.py
-
+# ==================================================
+# core/countdown.py — Countdown Tick Engine
+# ==================================================
+#
+# JobQueue tick callbacks that update timer messages until completion or cancellation.
+#
+# Layer: Core
+#
+# Responsibilities:
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
+#
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
+#
+# ==================================================
 import logging
 from datetime import datetime, timezone
 
@@ -13,20 +29,22 @@ logger = logging.getLogger(__name__)
 
 
 def _cancel_kb(message_id: int) -> InlineKeyboardMarkup:
+    """Core utility:  cancel kb."""
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_timer:{message_id}")]]
     )
 
 
 async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Core utility: countdown tick."""
     entry = context.job.data
 
-    # совместимость: раньше поле могло называться text
+    # Backwards compatibility: older payloads used `text` instead of `message`.
     entry_text = getattr(entry, "message", None)
     if entry_text is None:
         entry_text = getattr(entry, "text", "")
 
-    # если кто-то пометил как cancelled
+    # If the timer was marked as cancelled elsewhere, stop the job.
     if getattr(entry, "cancelled", False):
         return
 
@@ -55,7 +73,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.warning("Finalize failed: %s", e)
 
-        # убрать из стора
+        # Remove from the in-memory store.
         try:
             remove_timer(entry.chat_id, entry.message_id)
         except Exception:
@@ -68,7 +86,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
     if entry_text:
         new_text += f"\n{entry_text}"
 
-    # не редактируем то же самое (иначе Telegram 'message is not modified')
+    # Avoid re-sending the exact same text (Telegram returns 'message is not modified').
     if getattr(entry, "last_text", None) == new_text:
         delay = choose_interval(remaining)
         context.job_queue.run_once(countdown_tick, delay, data=entry, name=entry.job_name)
@@ -86,7 +104,7 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         msg = str(e).lower()
         logger.warning("Edit failed: %s", e)
         if "message to edit not found" in msg:
-            # сообщение удалено/не то id — останавливаем таймер, чтобы не зацикливаться
+            # The message was deleted / unexpected ID: stop the timer to avoid an infinite loop.
             try:
                 remove_timer(entry.chat_id, entry.message_id)
             except Exception:
@@ -98,5 +116,5 @@ async def countdown_tick(context: ContextTypes.DEFAULT_TYPE) -> None:
         countdown_tick,
         delay,
         data=entry,
-        name=entry.job_name,  # ✅ ВАЖНО: имя не меняем
+        name=entry.job_name,  # IMPORTANT: keep the job name stable
     )

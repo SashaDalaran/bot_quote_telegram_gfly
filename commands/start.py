@@ -2,19 +2,20 @@
 # commands/start.py — Start / Welcome Command
 # ==================================================
 #
-# This module defines the /start command.
+# User-facing /start handler; sends a short welcome message and points users to /help.
+#
+# Layer: Commands
 #
 # Responsibilities:
-# - Display a welcome message
-# - Introduce the bot’s main features
-# - Guide the user to the /help command
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - HTML parse mode is used intentionally
-# - The command works in private chats, groups and channels
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -42,6 +43,7 @@ async def start_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    """Handle the /start command."""
     chat = update.effective_chat
 
     # Safety guard: should never happen, but keeps the command robust

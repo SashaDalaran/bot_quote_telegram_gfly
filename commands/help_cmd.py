@@ -1,20 +1,21 @@
 # ==================================================
-# commands/help_cmd.py — Help & Command Reference
+# commands/help_cmd.py — Help / Command Reference
 # ==================================================
 #
-# This module defines the /help command.
+# User-facing /help handler; prints the command menu and shows admin-only commands conditionally.
+#
+# Layer: Commands
 #
 # Responsibilities:
-# - Display a structured list of available commands
-# - Show additional admin-only commands conditionally
-# - Provide usage examples for timers
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
 #
-# IMPORTANT:
-# - The help message is sent in HTML parse mode
-# - Admin commands are shown only to chat administrators
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -30,6 +31,7 @@ async def help_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    """Handle the /help command."""
     chat = update.effective_chat
 
     # --------------------------------------------------
@@ -50,7 +52,7 @@ async def help_command(
         "⏱ <b>Timers</b>\n"
         "/timer — simple countdown timer\n"
         "Examples:\n"
-        "/timer 10s tea\n"
+        "/timer 60s test\n"
         "/timer 5m\n"
         "/timer 1h20m Boss pull\n\n"
 

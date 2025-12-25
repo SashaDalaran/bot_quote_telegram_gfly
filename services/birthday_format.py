@@ -1,20 +1,21 @@
 # ==================================================
-# services/birthday_format.py — Guild Events Formatter
+# services/birthday_format.py — Guild Events Message Formatter
 # ==================================================
 #
-# Formats "Guild events" message (Challenges / Heroes / Birthdays)
-# into a Telegram-friendly text block.
+# Formats guild events (challenges/heroes/birthdays) into Telegram-friendly messages with consistent emoji rules.
 #
-# Rules requested by user:
-# - All emojis (except section headings 🏆 / 🦸) must come from
-#   services/holidays_flags.py mappings.
-# - No emoji de-duplication: if data provides both "category" and
-#   "countries" tokens, we intentionally use both.
-# - Show progress for ranged events:
-#   remaining days + "day X of N".
+# Layer: Services
+#
+# Responsibilities:
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
+#
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
 from __future__ import annotations
 
 import re
@@ -39,6 +40,7 @@ _CATEGORY_EMOJIS_NORM = {
 
 # Normalized lookup dicts (built from holidays_flags.py at import time)
 def _norm_key(value: Any) -> str:
+    """Service function:  norm key."""
     s = _norm_token(value)
     s = re.sub(r"[’'`]", "", s)
     s = re.sub(r"[^a-z0-9]+", "_", s)
@@ -80,25 +82,28 @@ _MONTH_ABBR = {
 
 
 def _format_short_date(d: date) -> str:
+    """Service function:  format short date."""
     return f"{d.day:02d} {_MONTH_ABBR[d.month]}"
 
 
 def _format_range(start: date, end: date) -> str:
     # Example: Dec 19–Jan 20
+    """Service function:  format range."""
     return f"{_MONTH_ABBR[start.month]} {start.day}–{_MONTH_ABBR[end.month]} {end.day}"
 
 
-def _ru_days_word(n: int) -> str:
-    # день / дня / дней
+def _days_word(n: int) -> str:
+    # English pluralization helper: day/days
+    """Service function:  days word."""
     n = abs(int(n))
     if 11 <= (n % 100) <= 14:
-        return "дней"
+        return "days"
     last = n % 10
     if last == 1:
-        return "день"
+        return "day"
     if 2 <= last <= 4:
-        return "дня"
-    return "дней"
+        return "days"
+    return "days"
 
 
 @dataclass(frozen=True)
@@ -140,6 +145,7 @@ def _range_dates(date_str: str, today: date) -> Optional[Tuple[date, date]]:
 
 
 def _range_progress(date_str: str, today: date) -> Optional[RangeProgress]:
+    """Service function:  range progress."""
     rng = _range_dates(date_str, today)
     if not rng:
         return None
@@ -167,10 +173,12 @@ def _range_progress(date_str: str, today: date) -> Optional[RangeProgress]:
 
 
 def _first_token(values: List[str]) -> str:
+    """Service function:  first token."""
     return values[0] if values else ""
 
 
 def _emoji_for_category(categories: List[str]) -> str:
+    """Service function:  emoji for category."""
     if not categories:
         return ""
     out = []
@@ -183,6 +191,7 @@ def _emoji_for_category(categories: List[str]) -> str:
 
 
 def _emoji_for_country(countries: List[str]) -> str:
+    """Service function:  emoji for country."""
     if not countries:
         return ""
     out = []
@@ -226,6 +235,7 @@ def _as_list(value: Any) -> List[str]:
 
 
 def _emoji_for_categories_all(categories: List[str]) -> str:
+    """Service function:  emoji for categories all."""
     emojis: List[str] = []
     for token in categories:
         key = _norm_key(token)
@@ -236,6 +246,7 @@ def _emoji_for_categories_all(categories: List[str]) -> str:
 
 
 def _emoji_for_countries_all(countries: List[str]) -> str:
+    """Service function:  emoji for countries all."""
     emojis: List[str] = []
     for token in countries:
         key = _norm_key(token)
@@ -303,7 +314,7 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     # -------------------
     lines.append("🏆 Guild Challenge")
     if not challenges:
-        lines.append("↳ челленджей нет")
+        lines.append("↳ no active challenges")
     else:
         for ev in challenges:
             name = str(ev.get("name", "")).strip()
@@ -321,10 +332,10 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
 
             prog = _range_progress(str(ev.get("date", "")), today)
             if prog:
-                lines.append(f"↳ интервал челенджа {range_emoji} {_format_range(prog.start, prog.end)}")
+                lines.append(f"↳ challenge period {range_emoji} {_format_range(prog.start, prog.end)}")
                 lines.append(
-                    f"↳ Сейчас идет {prog.day_index}-й день челенджа, осталось {prog.remaining_days} {_ru_days_word(prog.remaining_days)} "
-                    f"(день {prog.day_index} из {prog.total_days})"
+                    f"↳ Currently day {prog.day_index}; {prog.remaining_days} {_days_word(prog.remaining_days)} remaining "
+                    f"(day {prog.day_index} of {prog.total_days})"
                 )
             lines.append("")
 
@@ -333,7 +344,7 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     # -------------------
     lines.append("🦸 Heroes")
     if not heroes:
-        lines.append("↳ герои не найдены")
+        lines.append("↳ no heroes found")
     else:
         for ev in heroes:
             name = str(ev.get("name", "")).strip()
@@ -347,16 +358,16 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
             if hero:
                 lines.append(f"{hero_emoji} {hero}".strip())
             # This phrase is intentionally normalized for the 'accept/complete' hero format
-            lines.append(f"↳ {status_emoji} Челлендж принят, но не выполнен".strip())
+            lines.append(f"↳ {status_emoji} Challenge accepted, but not completed".strip())
 
             prog = _range_progress(str(ev.get("date", "")), today)
             if prog:
                 lines.append(
-                    f"↳ Промежуток отбывания в роли @ПЕДРИЛЛА {range_emoji} {_format_range(prog.start, prog.end)}"
+                    f"↳ @PEDRILLA role period {range_emoji} {_format_range(prog.start, prog.end)}"
                 )
                 lines.append(
-                    f"↳ осталось в роли @ПЕДРИЛЛА {prog.remaining_days} {_ru_days_word(prog.remaining_days)} "
-                    f"(день {prog.day_index} из {prog.total_days})"
+                    f"↳ remaining as @PEDRILLA: {prog.remaining_days} {_days_word(prog.remaining_days)} "
+                    f"(day {prog.day_index} of {prog.total_days})"
                 )
             lines.append("")
 
@@ -365,7 +376,7 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     # -------------------
     lines.append(f"{cake} Birthdays")
     if not birthdays:
-        lines.append("↳ дни рождения не найдены")
+        lines.append("↳ no birthdays found")
     else:
         for ev in birthdays:
             name = str(ev.get("name", "")).strip()

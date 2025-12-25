@@ -1,21 +1,21 @@
 # ==================================================
-# core/admin.py — Admin Permission Helpers
+# core/admin.py — Admin Checks
 # ==================================================
 #
-# This module contains helper utilities related
-# to administrator permission checks.
+# Utilities to detect whether a user is an admin in the current chat.
+#
+# Layer: Core
 #
 # Responsibilities:
-# - Determine whether the current user has
-#   administrative privileges in the chat
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
 #
-# IMPORTANT:
-# - This module contains Telegram-specific logic
-#   by design (chat types, member status).
-# - It should NOT contain business rules.
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
 #
 # ==================================================
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -35,6 +35,7 @@ async def is_admin(
     context: ContextTypes.DEFAULT_TYPE,
 ) -> bool:
 
+    """Core utility: is admin."""
     chat = update.effective_chat
     user = update.effective_user
 

@@ -1,21 +1,21 @@
 # ==================================================
-# services/quotes_service.py — Quotes Domain Service
+# services/quotes_service.py — Quotes Service
 # ==================================================
 #
-# This module contains domain-level logic
-# related to generic quotes.
+# Loads and selects quotes from datasets used by the /quote command and daily jobs.
+#
+# Layer: Services
 #
 # Responsibilities:
-# - Load quotes from a text file
-# - Provide a helper to select a random quote
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
 #
-# IMPORTANT:
-# - This module contains NO Telegram-specific code.
-# - It operates only on plain text data.
-# - Quotes delivery and formatting are handled elsewhere.
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
 import random
 import logging
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Logs the number of loaded quotes for visibility.
 #
 def load_quotes(path: str) -> list[str]:
+    """Service function: load quotes."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             quotes = [line.strip() for line in f if line.strip()]
@@ -51,6 +52,7 @@ def load_quotes(path: str) -> list[str]:
 # Returns None if the list is empty.
 #
 def get_random_quote(quotes: list[str]) -> str | None:
+    """Service function: get random quote."""
     if not quotes:
         return None
     return random.choice(quotes)

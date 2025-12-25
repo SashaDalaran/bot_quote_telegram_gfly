@@ -1,3 +1,21 @@
+# ==================================================
+# services/birthday_service.py — Guild Events / Birthdays Service
+# ==================================================
+#
+# Loads and normalizes guild event data (challenges, heroes, birthdays) used by daily jobs.
+#
+# Layer: Services
+#
+# Responsibilities:
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
+#
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
+#
+# ==================================================
 import json
 import os
 import re
@@ -36,6 +54,7 @@ _CYR_TO_LAT = str.maketrans({
 
 
 def _norm_token(value: Any) -> str:
+    """Service function:  norm token."""
     if value is None:
         return ""
     s = str(value).strip().translate(_CYR_TO_LAT)
@@ -81,6 +100,7 @@ def _strip_loose_json_list(text: str) -> str:
 
 
 def load_birthday_events(path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Service function: load birthday events."""
     path = path or _birthday_file_path()
 
     try:
@@ -116,6 +136,7 @@ def load_birthday_events(path: Optional[str] = None) -> List[Dict[str, Any]]:
 
 
 def _parse_mmdd(mmdd: str) -> Optional[Tuple[int, int]]:
+    """Service function:  parse mmdd."""
     m = re.fullmatch(r"\s*(\d{2})-(\d{2})\s*", mmdd)
     if not m:
         return None

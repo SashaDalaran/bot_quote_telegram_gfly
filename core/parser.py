@@ -1,4 +1,21 @@
-# core/parser.py
+# ==================================================
+# core/parser.py — Parsing Utilities
+# ==================================================
+#
+# Parsers for user inputs: durations, date+time with optional timezone offsets/aliases.
+#
+# Layer: Core
+#
+# Responsibilities:
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
+#
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
+#
+# ==================================================
 from __future__ import annotations
 
 import re
@@ -7,7 +24,7 @@ from typing import Tuple, Optional, List
 
 _DURATION_RE = re.compile(r"(?P<value>\d+)\s*(?P<unit>[smhd])", re.IGNORECASE)
 
-# Минимальный набор TZ. Если не указано — считаем UTC.
+# Minimal timezone alias set. If not provided, we assume UTC.
 _TZ_OFFSETS = {
     "UTC": 0,
     "GMT": 0,
@@ -109,8 +126,9 @@ def parse_date_time(args: List[str]) -> Tuple[datetime, Optional[str]]:
     return dt_with_tz.astimezone(timezone.utc), (msg or None)
 
 
-# alias (если где-то импортируют старое имя)
+# Backwards-compatibility alias (in case older code imports the legacy name).
 def parse_datetime_with_tz(args: List[str]) -> Tuple[datetime, Optional[str]]:
+    """Core utility: parse datetime with tz."""
     return parse_date_time(args)
 # ------------------------------------------------------------------
 # Public API expected by commands/date_timer.py

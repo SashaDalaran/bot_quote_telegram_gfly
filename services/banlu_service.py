@@ -1,23 +1,21 @@
 # ==================================================
-# services/banlu_service.py — Ban’Lu Domain Logic
+# services/banlu_service.py — Ban'Lu Quotes Service
 # ==================================================
 #
-# This module contains all domain-specific logic
-# related to Ban’Lu quotes.
+# Loads Ban'Lu quotes and provides helpers for daily posting.
+#
+# Layer: Services
 #
 # Responsibilities:
-# - Load Ban’Lu quotes from a text file
-# - Select a random quote
-# - Format a Telegram-ready message
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
 #
-# IMPORTANT:
-# - This module contains NO Telegram-specific code
-#   (no bot, no context, no chat IDs).
-# - It can be reused by commands, daily jobs,
-#   or any other delivery mechanism.
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
 import random
 
 from core.settings import BANLU_WOWHEAD_URL
@@ -30,6 +28,7 @@ from core.settings import BANLU_WOWHEAD_URL
 # Each non-empty line represents a single quote.
 #
 def load_banlu_quotes(path: str) -> list[str]:
+    """Service function: load banlu quotes."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
@@ -45,6 +44,7 @@ def load_banlu_quotes(path: str) -> list[str]:
 # Returns None if the list is empty.
 #
 def get_random_banlu_quote(quotes: list[str]) -> str | None:
+    """Service function: get random banlu quote."""
     if not quotes:
         return None
     return random.choice(quotes)
@@ -62,6 +62,7 @@ def get_random_banlu_quote(quotes: list[str]) -> str | None:
 # - A reference link (Wowhead)
 #
 def format_banlu_message(quote: str) -> str:
+    """Service function: format banlu message."""
     return (
         "🐉 Ban’Lu — Companion of the Grand Master\n\n"
         f"💬 {quote}\n\n"

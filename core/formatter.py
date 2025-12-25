@@ -1,4 +1,21 @@
-# core/formatter.py
+# ==================================================
+# core/formatter.py — Formatting Helpers
+# ==================================================
+#
+# Shared formatting utilities for user-facing text (safe formatting, pluralization, date ranges).
+#
+# Layer: Core
+#
+# Responsibilities:
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
+#
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
+#
+# ==================================================
 from __future__ import annotations
 
 
@@ -50,10 +67,12 @@ def choose_update_interval(remaining_seconds: int) -> int:
 
 
 
-# ---- Backward-compatible aliases (на всякий случай) ----
+# ---- Backward-compatible aliases (for backwards compatibility) ----
 def format_remaining(seconds: int) -> str:
+    """Core utility: format remaining."""
     return format_remaining_time(seconds)
 
 
 def choose_interval(remaining_seconds: int) -> int:
+    """Core utility: choose interval."""
     return choose_update_interval(remaining_seconds)

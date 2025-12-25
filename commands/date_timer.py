@@ -1,7 +1,21 @@
 # ==================================================
-# commands/date_timer.py — /timerdate
+# commands/date_timer.py — Absolute Date Timer Command
 # ==================================================
-
+#
+# User-facing /timerdate handler; parses a date+time (with optional TZ) and schedules a countdown timer.
+#
+# Layer: Commands
+#
+# Responsibilities:
+# - Validate/parse user input (minimal)
+# - Delegate work to services/core
+# - Send user-facing responses via Telegram API
+#
+# Boundaries:
+# - Commands do not implement business logic; they orchestrate user interaction.
+# - Keep commands thin and deterministic; move reusable logic to services/core.
+#
+# ==================================================
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -40,18 +54,18 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
     except Exception:
         await update.effective_message.reply_text(
-            "Формат: /timerdate <дата> <время> [TZ] [сообщение]\n"
-            "Дата: YYYY-MM-DD или DD.MM.YYYY\n"
-            "TZ (необязательно): +3, +03, +03:00, -5 ...\n"
-            "Примеры:\n"
-            "• /timerdate 2025-12-31 23:59 Новый год!\n"
+            "Format: /timerdate <date> <time> [TZ] [message]\n"
+            "Date: YYYY-MM-DD or DD.MM.YYYY\n"
+            "TZ (optional): +3, +03, +03:00, -5 ...\n"
+            "Examples:\n"
+            "• /timerdate 2025-12-31 23:59 Happy New Year!\n"
             "• /timerdate 31.12.2025 23:59 +3 Happy New Year 🎆"
         )
         return
 
     now = datetime.now(timezone.utc)
     if target_time <= now:
-        await update.effective_message.reply_text("Эта дата уже в прошлом 😅")
+        await update.effective_message.reply_text("That date is in the past 😅")
         return
 
     remaining = int((target_time - now).total_seconds())
@@ -90,6 +104,6 @@ async def timerdate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         chat_id=sent.chat_id,
         target_time=target_time,
         message=message,
-        message_id=sent.message_id,  # ✅ это сообщение будем edit'ить
+        message_id=sent.message_id,  # This is the message that will be edited by the countdown engine.
         pin_message_id=sent.message_id if pin else None,
     )

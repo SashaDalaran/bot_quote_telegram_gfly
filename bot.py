@@ -1,7 +1,22 @@
 # ==================================================
-# bot.py — Telegram Bot Entry Point
+# bot.py — Telegram Bot Entrypoint
 # ==================================================
-
+#
+# Application entrypoint: builds the PTB Application, registers command/callback handlers, wires shared state, and schedules daily jobs.
+#
+# Layer: Root
+#
+# Responsibilities:
+# - Load configuration and datasets (quotes, Ban'Lu quotes)
+# - Register command and callback handlers with proper chat-type filters
+# - Schedule daily jobs via JobQueue
+# - Provide a single global error handler
+#
+# Boundaries:
+# - This module wires components together, but it does not contain business logic (that lives in core/ and services/).
+# - This module should stay lightweight: avoid adding feature logic here—add it in the correct layer and import it.
+#
+# ==================================================
 import logging
 import traceback
 
@@ -45,6 +60,7 @@ logger = logging.getLogger(__name__)
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """error handler."""
     traceback.print_exception(
         type(context.error),
         context.error,
@@ -58,6 +74,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 def main() -> None:
+    """main."""
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
@@ -84,7 +101,7 @@ def main() -> None:
     app.add_handler(CommandHandler("timer", timer_command, filters=private_and_groups))
     app.add_handler(CommandHandler("timerdate", timerdate_command, filters=private_and_groups))
 
-    # ✅ cancel menu + callbacks (из commands/cancel.py)
+    # Cancel menu + callback handlers (see commands/cancel.py)
     app.add_handler(CommandHandler("cancel", cancel_command, filters=private_and_groups))
     # Buttons under each timer message
     app.add_handler(CallbackQueryHandler(cancel_timer_callback, pattern=r"^cancel_timer:"))

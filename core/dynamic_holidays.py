@@ -1,21 +1,21 @@
 # ==================================================
-# core/dynamic_holidays.py — Dynamic Holiday Generator
+# core/dynamic_holidays.py — Dynamic Holiday Calculations
 # ==================================================
 #
-# This module contains pure date-based logic for
-# dynamically calculated holidays.
+# Pure functions for holidays that cannot be represented as fixed calendar dates (e.g., Easter-based holidays).
+#
+# Layer: Core
 #
 # Responsibilities:
-# - Calculate holidays that do not have a fixed date
-# - Provide normalized holiday objects for the service layer
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
 #
-# IMPORTANT:
-# - This module contains NO Telegram-specific code
-# - It contains NO formatting or I/O
-# - It operates purely on dates and algorithms
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
 #
 # ==================================================
-
 from datetime import datetime, timedelta, date
 
 # ==================================================

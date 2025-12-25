@@ -1,43 +1,21 @@
 # ==================================================
-# services/holidays_flags.py — Holiday Flags & Categories
+# services/holidays_flags.py — Holiday Emoji & Flag Maps
 # ==================================================
 #
-# This module contains static mappings used by the
-# Holidays domain logic and formatting layer.
+# User-maintained mappings for category emojis and country flags.
+#
+# Layer: Services
 #
 # Responsibilities:
-# - Map country / region identifiers to emoji flags
-# - Map holiday categories to representative emojis
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
 #
-# IMPORTANT:
-# - This file contains ONLY static data.
-# - No logic, no Telegram API calls, no side effects.
-# - Keys must be normalized (lowercase, snake_case).
-#
-# These mappings are primarily used by:
-# - services/holidays_format.py
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
 #
 # ==================================================
-
-# ==================================================
-# Country / Region Flags
-# ==================================================
-#
-# Maps normalized country or region identifiers
-# to their corresponding emoji flags.
-#
-# Examples:
-# - "georgia"  → 🇬🇪
-# - "usa"      → 🇺🇸
-# - "world"    → 🌍
-#
-# NOTE:
-# - Keys must match the identifiers used in
-#   holiday source data.
-# - Some entries represent regions, cultures,
-#   or religions rather than countries.
-#
-
 COUNTRY_FLAGS = {
 
     # ---------------- Europe ----------------

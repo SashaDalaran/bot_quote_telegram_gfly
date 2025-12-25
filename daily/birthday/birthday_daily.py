@@ -1,3 +1,20 @@
+# ==================================================
+# daily/birthday/birthday_daily.py — Guild Events Daily Job
+# ==================================================
+#
+# Scheduled daily job that posts guild events (challenges/heroes/birthdays) to configured channels.
+#
+# Layer: Daily
+#
+# Responsibilities:
+# - Schedule recurring jobs via JobQueue
+# - Load/format content via services
+# - Send messages to configured channels with minimal side effects
+#
+# Boundaries:
+# - Daily jobs are orchestration: avoid putting domain logic here—keep it in services/core.
+#
+# ==================================================
 import logging
 from datetime import date, datetime, timezone, timedelta
 from typing import Dict, List
@@ -18,6 +35,7 @@ def _parse_channel_ids() -> List[int]:
 
 
 async def send_birthday_daily(app: Application) -> None:
+    """JobQueue callback: execute the daily task and post to configured channels."""
     channels = _parse_channel_ids()
     if not channels:
         logger.warning("Birthday daily: no BIRTHDAY_CHANNEL_ID configured")

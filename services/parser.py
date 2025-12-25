@@ -1,7 +1,21 @@
 # ==================================================
-# services/parser.py — helpers for /timer and /timerdate
+# services/parser.py — Command Parsing Helpers
 # ==================================================
-
+#
+# Command-level parsing utilities shared by commands (e.g., /timerdate argument parsing).
+#
+# Layer: Services
+#
+# Responsibilities:
+# - Encapsulate domain logic and data access
+# - Keep formatting rules consistent across commands and daily jobs
+# - Provide stable functions consumed by commands/daily scripts
+#
+# Boundaries:
+# - Services may use core utilities, but should avoid importing command modules.
+# - Services should not perform Telegram network calls directly (commands/daily own messaging).
+#
+# ==================================================
 from __future__ import annotations
 
 import re

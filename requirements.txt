@@ -2,6 +2,19 @@
 # requirements.txt — Python Dependencies
 # ==================================================
 #
+# This file pins runtime dependencies used by the bot.
+# Keep versions stable for reproducible deployments.
+#
+# Notes:
+# - Fly.io builds the image from scratch on deploy
+# - If you upgrade python-telegram-bot, re-test JobQueue behavior
+#
+# ==================================================
+
+# ==================================================
+# requirements.txt — Python Dependencies
+# ==================================================
+#
 # This file defines all external Python dependencies
 # required to run the Telegram bot.
 #

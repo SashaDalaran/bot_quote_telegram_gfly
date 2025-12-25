@@ -2,21 +2,20 @@
 # core/settings.py — Application Configuration
 # ==================================================
 #
-# This module defines global configuration values
-# used across the application.
+# Central configuration: loads environment variables and defines shared constants used across the bot.
+#
+# Layer: Core
 #
 # Responsibilities:
-# - Load required secrets from environment variables
-# - Define default paths for data files
-# - Store shared constants (URLs, timezones)
+# - Provide reusable, testable logic and infrastructure helpers
+# - Avoid direct Telegram API usage (except JobQueue callback signatures where required)
+# - Expose stable APIs consumed by services and commands
 #
-# IMPORTANT:
-# - This file is imported at startup
-# - Missing required values must fail FAST
-# - No business logic should be placed here
+# Boundaries:
+# - Core must remain independent from user interaction details.
+# - Core should not import commands (top layer) to avoid circular dependencies.
 #
 # ==================================================
-
 import os
 from datetime import timezone, timedelta
 
@@ -59,10 +58,7 @@ BANLU_QUOTES_FILE = os.getenv(
 # Public reference links used in formatted messages.
 #
 
-BANLU_WOWHEAD_URL = (
-    "https://www.wowhead.com/ru/item=142225/"
-    "бань-лу-спутник-великого-мастера"
-)
+BANLU_WOWHEAD_URL = "https://www.wowhead.com/item=142225"  # Ban'Lu (Grandmaster's Companion)
 
 # ==================================================
 # Timezone configuration

@@ -29,6 +29,14 @@ from services.birthday_service import _norm_token  # reuse normalization (avoid 
 #   To avoid startup crashes, we only import the stable maps and keep local UI defaults here.
 from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS
 
+# Normalized lookup maps (without touching services/holidays_flags.py)
+_COUNTRY_FLAGS_NORM = {
+    _norm_token(k): v for k, v in COUNTRY_FLAGS.items() if _norm_token(k)
+}
+_CATEGORY_EMOJIS_NORM = {
+    _norm_token(k): v for k, v in CATEGORY_EMOJIS.items() if _norm_token(k)
+}
+
 # Normalized lookup dicts (built from holidays_flags.py at import time)
 def _norm_key(value: Any) -> str:
     s = _norm_token(value)
@@ -221,7 +229,7 @@ def _emoji_for_categories_all(categories: List[str]) -> str:
     emojis: List[str] = []
     for token in categories:
         key = _norm_token(token)
-        emoji = CATEGORY_EMOJIS.get(key)
+        emoji = _CATEGORY_EMOJIS_NORM.get(key)
         if emoji:
             emojis.append(emoji)
     return "".join(emojis)
@@ -231,7 +239,7 @@ def _emoji_for_countries_all(countries: List[str]) -> str:
     emojis: List[str] = []
     for token in countries:
         key = _norm_token(token)
-        emoji = COUNTRY_FLAGS.get(key)
+        emoji = _COUNTRY_FLAGS_NORM.get(key)
         if emoji:
             emojis.append(emoji)
     return "".join(emojis)
@@ -390,8 +398,24 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
             if message:
                 lines.append(f"{country_emojis} {message}".strip())
             else:
-                country_keys = " ".join([_norm_token(c) for c in countries if _norm_token(c)])
-                lines.append(f"{country_emojis} {country_keys}".strip())
+                # If all tokens were resolved to emojis (e.g. 'murloc'), don't print raw keys like 'murloc'.
+                unresolved: List[str] = []
+                for c in countries:
+                    raw = str(c).strip()
+                    k = _norm_token(c)
+                    if not raw:
+                        continue
+                    if k and k not in _COUNTRY_FLAGS_NORM:
+                        unresolved.append(raw)
+
+                if unresolved:
+                    lines.append(f"{country_emojis} {' '.join(unresolved)}".strip())
+                else:
+                    # Only emojis (clean)
+                    if country_emojis:
+                        lines.append(country_emojis)
+                    else:
+                        lines.append(' '.join([str(c).strip() for c in countries if str(c).strip()]))
 
     # Trim trailing blanks
     while lines and lines[-1] == "":

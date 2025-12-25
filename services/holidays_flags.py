@@ -260,3 +260,17 @@ CATEGORY_EMOJIS = {'accept': '💩',
  'technology': '💻',
  'wildlife': '🦁',
  'work': '💼'}
+
+# ==================================================
+# UI / Formatting Emojis
+# ==================================================
+#
+# Small set of non-holiday emojis used by formatters.
+# Kept here so the formatting layer can stay data-driven.
+#
+
+UI_EMOJIS = {
+    "guild_events_header": "📅",
+    "birthdays_header": "🎂",
+    "date_range": "🗓️",
+}

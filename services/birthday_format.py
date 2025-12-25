@@ -1,190 +1,290 @@
-import html
-from datetime import date
-from typing import Dict, List, Optional
+# ==================================================
+# services/birthday_format.py — Guild Events Formatter
+# ==================================================
+#
+# Formats "Guild events" message (Challenges / Heroes / Birthdays)
+# into a Telegram-friendly text block.
+#
+# Rules requested by user:
+# - All emojis (except section headings 🏆 / 🦸) must come from
+#   services/holidays_flags.py mappings.
+# - No emoji de-duplication: if data provides both "category" and
+#   "countries" tokens, we intentionally use both.
+# - Show progress for ranged events:
+#   remaining days + "day X of N".
+#
+# ==================================================
 
-from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS
+from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
-# Common Cyrillic lookalikes that can sneak into tags like "Сhallenge".
-_CYR_TO_LAT = str.maketrans({
-    "С": "C",
-    "с": "c",
-    "О": "O",
-    "о": "o",
-    "А": "A",
-    "а": "a",
-    "Е": "E",
-    "е": "e",
-    "Р": "P",
-    "р": "p",
-    "Н": "H",
-    "н": "h",
-    "К": "K",
-    "к": "k",
-    "Т": "T",
-    "т": "t",
-    "М": "M",
-    "м": "m",
-    "В": "B",
-    "в": "b",
-    "Х": "X",
-    "х": "x",
-})
+from services.birthday_service import _norm_token  # reuse normalization (avoid duplicates)
+from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS, UI_EMOJIS
 
 
-def _norm_token(value: str) -> str:
-    s = str(value).strip().translate(_CYR_TO_LAT)
-    s = " ".join(s.split())
-    return s.lower()
+# ------------------------------
+# Date helpers
+# ------------------------------
+
+_MONTH_ABBR = {
+    1: "Jan",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Aug",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec",
+}
 
 
-def _md_to_human(mmdd: str) -> str:
-    """Convert MM-DD to 'Mon DD' (English short) without a year."""
-    months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ]
-    try:
-        m, d = mmdd.split("-")
-        m_i = int(m)
-        d_i = int(d)
-        if 1 <= m_i <= 12 and 1 <= d_i <= 31:
-            return f"{months[m_i - 1]} {d_i}"
-    except Exception:
-        pass
-    return mmdd
+def _format_short_date(d: date) -> str:
+    return f"{d.day:02d} {_MONTH_ABBR[d.month]}"
 
 
-def _range_label(date_str: str) -> str:
+def _format_range(start: date, end: date) -> str:
+    # Example: Dec 19–Jan 20
+    return f"{_MONTH_ABBR[start.month]} {start.day}–{_MONTH_ABBR[end.month]} {end.day}"
+
+
+def _ru_days_word(n: int) -> str:
+    # день / дня / дней
+    n = abs(int(n))
+    if 11 <= (n % 100) <= 14:
+        return "дней"
+    last = n % 10
+    if last == 1:
+        return "день"
+    if 2 <= last <= 4:
+        return "дня"
+    return "дней"
+
+
+@dataclass(frozen=True)
+class RangeProgress:
+    start: date
+    end: date
+    day_index: int
+    total_days: int
+    remaining_days: int
+
+
+def _range_dates(date_str: str, today: date) -> Optional[Tuple[date, date]]:
+    """Parse 'MM-DD:MM-DD' into actual start/end dates around 'today'.
+
+    Handles year wrap (e.g. 12-19:01-20).
+    """
     if ":" not in date_str:
-        return ""
-    start, end = date_str.split(":", 1)
-    return f"{_md_to_human(start)}–{_md_to_human(end)}"
-
-
-def _range_progress(date_str: str, today: date) -> Optional[tuple[int, int, int]]:
-    """For MM-DD:MM-DD ranges, return (remaining_days, day_number, total_days).
-
-    - Day numbering starts at 1 on the first day of the range (inclusive).
-    - Total days counts both endpoints (inclusive).
-    - Remaining days is exclusive of today: remaining = total - day_number.
-    - Correctly handles year-crossing ranges like 12-19:01-20.
-    """
-    if not date_str or ":" not in date_str:
         return None
 
-    start_raw, end_raw = date_str.split(":", 1)
-    try:
-        sm, sd = (int(x) for x in start_raw.split("-", 1))
-        em, ed = (int(x) for x in end_raw.split("-", 1))
-    except Exception:
-        return None
+    start_str, end_str = date_str.split(":", 1)
+    sm, sd = map(int, start_str.split("-"))
+    em, ed = map(int, end_str.split("-"))
 
-    crosses_year = (sm, sd) > (em, ed)
+    wraps = (em, ed) < (sm, sd)
 
-    if crosses_year:
-        # Example: 12-19:01-20
-        if (today.month, today.day) >= (sm, sd):
-            start_year = today.year
-            end_year = today.year + 1
+    # choose a year so that today is inside the window
+    if wraps:
+        if today.month > sm or (today.month == sm and today.day >= sd):
+            start_y = today.year
+            end_y = today.year + 1
         else:
-            start_year = today.year - 1
-            end_year = today.year
+            start_y = today.year - 1
+            end_y = today.year
     else:
-        start_year = today.year
-        end_year = today.year
+        start_y = today.year
+        end_y = today.year
 
-    try:
-        start_dt = date(start_year, sm, sd)
-        end_dt = date(end_year, em, ed)
-    except ValueError:
+    return date(start_y, sm, sd), date(end_y, em, ed)
+
+
+def _range_progress(date_str: str, today: date) -> Optional[RangeProgress]:
+    rng = _range_dates(date_str, today)
+    if not rng:
         return None
 
-    total = (end_dt - start_dt).days + 1
-    day_no = (today - start_dt).days + 1
-    remaining = total - day_no
-
-    # If today is out of range, do not show progress.
-    if day_no < 1 or day_no > total:
+    start, end = rng
+    if not (start <= today <= end):
         return None
 
-    if remaining < 0:
-        remaining = 0
-    return remaining, day_no, total
+    day_index = (today - start).days + 1
+    total_days = (end - start).days + 1
+    remaining_days = total_days - day_index
+
+    return RangeProgress(
+        start=start,
+        end=end,
+        day_index=day_index,
+        total_days=total_days,
+        remaining_days=remaining_days,
+    )
 
 
-def _emojize(values: List[str], mapping: Dict[str, str]) -> str:
-    out = []
-    for v in values or []:
-        key = _norm_token(v)
-        emoji = mapping.get(key)
-        if emoji:
-            out.append(emoji)
-    return "".join(out)
+# ------------------------------
+# Emoji resolvers
+# ------------------------------
 
 
-def _event_line(ev: dict, today: date) -> str:
-    name = html.escape(str(ev.get("name", ""))).strip()
-    categories = ev.get("category") or []
-    countries = ev.get("countries") or []
+def _first_token(values: List[str]) -> str:
+    return values[0] if values else ""
 
-    cat_emoji = _emojize([str(c) for c in categories], CATEGORY_EMOJIS)
-    country_emoji = _emojize([str(c) for c in countries], COUNTRY_FLAGS)
 
-    # Avoid ugly duplicates like "⚡️⚡️" when both maps resolve to the same emoji.
-    if cat_emoji and country_emoji:
-        prefix = cat_emoji if cat_emoji == country_emoji else f"{cat_emoji}{country_emoji}"
+def _emoji_for_category(categories: List[str]) -> str:
+    key = _norm_token(_first_token(categories))
+    return CATEGORY_EMOJIS.get(key, "")
+
+
+def _emoji_for_country(countries: List[str]) -> str:
+    key = _norm_token(_first_token(countries))
+    return COUNTRY_FLAGS.get(key, "")
+
+
+# ------------------------------
+# Name parsing
+# ------------------------------
+
+
+def _split_owner_task(name: str) -> Tuple[str, str]:
+    """Challenge line: 'OWNER TASK...' -> ('OWNER', 'TASK...')."""
+    parts = name.strip().split()
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:]).replace("  ", " ")
+
+
+def _split_owner_desc(name: str) -> Tuple[str, str]:
+    """Hero line: 'OWNER - desc' or 'OWNER desc' -> ('OWNER', 'desc')."""
+    s = name.strip()
+    if " - " in s:
+        left, right = s.split(" - ", 1)
+        return left.strip(), right.strip()
+    if "-" in s:
+        left, right = s.split("-", 1)
+        return left.strip(), right.strip()
+    parts = s.split()
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:]).strip()
+
+
+# ------------------------------
+# Public API
+# ------------------------------
+
+
+def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
+    """Render a single message for the 'Guild events' channel."""
+
+    title = payload.get("title", "Guild events")
+    challenges: List[Dict[str, Any]] = payload.get("challenges", [])
+    heroes: List[Dict[str, Any]] = payload.get("heroes", [])
+    birthdays: List[Dict[str, Any]] = payload.get("birthdays", [])
+
+    cal = UI_EMOJIS.get("guild_events_header", "📅")
+    cake = UI_EMOJIS.get("birthdays_header", "🎂")
+    range_emoji = UI_EMOJIS.get("date_range", "🗓️")
+
+    lines: List[str] = []
+    lines.append(f"{cal} {title} — {_format_short_date(today)}")
+    lines.append("")
+
+    # -------------------
+    # Guild Challenge
+    # -------------------
+    lines.append("🏆 Guild Challenge")
+    if not challenges:
+        lines.append("↳ челленджей нет")
     else:
-        prefix = cat_emoji or country_emoji
-    prefix = f"{prefix} ".strip()
+        for ev in challenges:
+            name = str(ev.get("name", "")).strip()
+            categories = ev.get("category", []) or []
+            countries = ev.get("countries", []) or []
 
-    date_str = str(ev.get("date", ""))
-    rng = _range_label(date_str)
-    suffix = f" <i>({html.escape(rng)})</i>" if rng else ""
-    extra = ""
-    progress = _range_progress(date_str, today) if rng else None
-    if progress:
-        remaining, day_no, total = progress
-        extra = (
-            f"\n↳ осталось <b>{remaining}</b> дней "
-            f"(день <b>{day_no}</b> из <b>{total}</b>)"
-        )
+            owner, task = _split_owner_task(name)
+            owner_emoji = _emoji_for_country(countries)
+            task_emoji = _emoji_for_category(categories)
 
-    # Bullet style aligned with other daily messages
-    if prefix:
-        return f"• {prefix} <b>{name}</b>{suffix}{extra}"
-    return f"• <b>{name}</b>{suffix}{extra}"
+            if owner:
+                lines.append(f"{owner_emoji} {owner}".strip())
+            if task:
+                lines.append(f"↳ {task_emoji} {task}".strip())
 
+            prog = _range_progress(str(ev.get("date", "")), today)
+            if prog:
+                lines.append(f"↳ интервал челенджа {range_emoji} {_format_range(prog.start, prog.end)}")
+                lines.append(
+                    f"↳ Сейчас идет {prog.day_index}-й день челенджа, осталось {prog.remaining_days} {_ru_days_word(prog.remaining_days)} "
+                    f"(день {prog.day_index} из {prog.total_days})"
+                )
+            lines.append("")
 
-def format_birthday_message(payload: dict, today: Optional[date] = None) -> str:
-    """Create a single message with 3 sections:
+    # -------------------
+    # Heroes
+    # -------------------
+    lines.append("🦸 Heroes")
+    if not heroes:
+        lines.append("↳ герои не найдены")
+    else:
+        for ev in heroes:
+            name = str(ev.get("name", "")).strip()
+            categories = ev.get("category", []) or []
+            countries = ev.get("countries", []) or []
 
-    - Guild Challenges (range events)
-    - Heroes (range events)
-    - Guild Birthdays (single-day)
-    """
-    today = today or date.today()
-    date_header = today.strftime("%d %b")
+            hero, _desc = _split_owner_desc(name)
+            hero_emoji = _emoji_for_country(countries)
+            status_emoji = _emoji_for_category(categories)
 
-    challenges = payload.get("challenges", []) or []
-    heroes = payload.get("heroes", []) or []
-    birthdays = payload.get("birthdays", []) or []
+            if hero:
+                lines.append(f"{hero_emoji} {hero}".strip())
+            # This phrase is intentionally normalized for the 'accept/complete' hero format
+            lines.append(f"↳ {status_emoji} Челлендж принят, но не выполнен".strip())
 
-    if not (challenges or heroes or birthdays):
-        return f"📅 <b>Guild events — {date_header}</b>\n\nNo events for today."
+            prog = _range_progress(str(ev.get("date", "")), today)
+            if prog:
+                lines.append(
+                    f"↳ Промежуток отбывания в роли @ПЕДРИЛЛА {range_emoji} {_format_range(prog.start, prog.end)}"
+                )
+                lines.append(
+                    f"↳ осталось в роли @ПЕДРИЛЛА {prog.remaining_days} {_ru_days_word(prog.remaining_days)} "
+                    f"(день {prog.day_index} из {prog.total_days})"
+                )
+            lines.append("")
 
-    parts: List[str] = [f"📅 <b>Guild events — {date_header}</b>"]
+    # -------------------
+    # Birthdays
+    # -------------------
+    lines.append(f"{cake} Birthdays")
+    if not birthdays:
+        lines.append("↳ дни рождения не найдены")
+    else:
+        for ev in birthdays:
+            name = str(ev.get("name", "")).strip()
+            categories = ev.get("category", []) or []
+            countries = ev.get("countries", []) or []
 
-    if challenges:
-        parts.append("\n🏆 <b>Guild Challenge</b>")
-        parts.extend(_event_line(ev, today) for ev in challenges)
+            cat_emoji = _emoji_for_category(categories)
+            flag_emoji = _emoji_for_country(countries)
+            country_key = _norm_token(_first_token(countries))
 
-    if heroes:
-        parts.append("\n🦸 <b>Heroes</b>")
-        parts.extend(_event_line(ev, today) for ev in heroes)
+            lines.append(f"{cat_emoji} {name}".strip())
+            if country_key == "murloc":
+                lines.append(f"{flag_emoji} Mrgl Mrgl!")
+            else:
+                lines.append(f"{flag_emoji} {country_key}".strip())
 
-    if birthdays:
-        parts.append("\n🎂 <b>Birthdays</b>")
-        parts.extend(_event_line(ev, today) for ev in birthdays)
+    # Trim trailing blanks
+    while lines and lines[-1] == "":
+        lines.pop()
 
-    return "\n".join(parts).strip()
+    return "\n".join(lines)

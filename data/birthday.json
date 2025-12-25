@@ -1,11 +1,9 @@
-# Челендж Мурлоков
+[
 { "date": "12-19:01-20", "name": "СОУНИЯ ВЗЯТЬ 4 К РИО", "category": ["challenge"], "countries": ["challenge"] },
 
-# Герой дня
-{ "date": "12-24:01-24", "name": "МУРЛОК - челендж был аксепт но не комплит", "category": ["accept"], "countries": ["complete"] },
+{ "date": "12-24:01-24", "name": "МУРЛОК ПИДРИЛА НЕ ОБНАРУЖЕН", "category": ["accept"], "countries": ["complete"] },
 
 
-# ДНИ РОЖДЕНИЯ
 { "date": "01-16", "name": "Дима Officer", "category": ["birthday"], "countries": ["murloc"] },
 
 
@@ -51,7 +49,7 @@
 { "date": "12-10", "name": "Герлари (Даня)", "category": ["birthday"], "countries": ["murloc"] },
 { "date": "12-10", "name": "Капшняк (Данчитос)", "category": ["birthday"], "countries": ["murloc"] },
 { "date": "12-23", "name": "Yöre (Даниил)", "category": ["birthday"], "countries": ["murloc"] },
-{ "date": "12-24", "name": "ТЕСТ МУРЛОК", "category": ["birthday"], "countries": ["murloc"] },
 { "date": "12-25", "name": "Sadness (Семён)", "category": ["birthday"], "countries": ["murloc"] },
 { "date": "12-27", "name": "Мотягойда (Мотя)", "category": ["birthday"], "countries": ["murloc"] },
 { "date": "12-30", "name": "Шор (Олег)", "category": ["birthday"], "countries": ["murloc"] }
+]

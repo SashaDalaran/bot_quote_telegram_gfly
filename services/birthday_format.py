@@ -350,7 +350,6 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
                 lines.append(f"↳ challenge period {range_emoji} {_format_range(prog.start, prog.end)}")
                 lines.append(
                     f"↳ Currently day {prog.day_index} out of {prog.remaining_days} {_days_word(prog.remaining_days)} remaining "
-                    f"(day {prog.day_index} of {prog.total_days})"
                 )
             lines.append("")
 

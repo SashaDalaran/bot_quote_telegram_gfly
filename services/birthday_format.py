@@ -22,7 +22,20 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.birthday_service import _norm_token  # reuse normalization (avoid duplicates)
-from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS, UI_EMOJIS
+# IMPORTANT:
+# - Do NOT modify services/holidays_flags.py (user-managed mapping).
+# - That module may or may not expose UI_EMOJIS depending on the deployed version.
+#   To avoid startup crashes, we only import the stable maps and keep local UI defaults here.
+from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS
+
+# Minimal UI emojis used only for section headers/formatting.
+# (Categories & countries must come from holidays_flags.)
+UI = {
+    "calendar": "📅",
+    "challenge": "🏆",
+    "heroes": "🦸",
+    "birthdays": "🎂",
+}
 
 
 # ------------------------------
@@ -146,6 +159,57 @@ def _emoji_for_country(countries: List[str]) -> str:
     return COUNTRY_FLAGS.get(key, "")
 
 
+def _as_list(value: Any) -> List[str]:
+    """Normalize a value that can be list/str/None into a list of strings.
+
+    Birthday JSON may use either singular or plural keys and can store either:
+      - "country": "US" or "countries": ["US", "CA"]
+      - "category": "Fun" or "categories": ["Fun", "Religious"]
+
+    We keep order and do NOT deduplicate (user may intentionally map the same emoji for
+    multiple tokens and want to see them all).
+    """
+
+    if value is None:
+        return []
+    if isinstance(value, list):
+        out: List[str] = []
+        for v in value:
+            s = str(v).strip()
+            if s:
+                out.append(s)
+        return out
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return []
+        # Allow light separators if user stores "US,CA" etc.
+        parts = re.split(r"[,;/]", s)
+        return [p.strip() for p in parts if p.strip()]
+    s = str(value).strip()
+    return [s] if s else []
+
+
+def _emoji_for_categories_all(categories: List[str]) -> str:
+    emojis: List[str] = []
+    for token in categories:
+        key = _norm_token(token)
+        emoji = CATEGORY_EMOJIS.get(key)
+        if emoji:
+            emojis.append(emoji)
+    return "".join(emojis)
+
+
+def _emoji_for_countries_all(countries: List[str]) -> str:
+    emojis: List[str] = []
+    for token in countries:
+        key = _norm_token(token)
+        emoji = COUNTRY_FLAGS.get(key)
+        if emoji:
+            emojis.append(emoji)
+    return "".join(emojis)
+
+
 # ------------------------------
 # Name parsing
 # ------------------------------
@@ -183,7 +247,7 @@ def _split_owner_desc(name: str) -> Tuple[str, str]:
 # ------------------------------
 
 
-def format_guild_events_message(payload: Dict[str, Any], today: date) -> str:
+def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     """Render a single message for the 'Guild events' channel."""
 
     title = payload.get("title", "Guild events")
@@ -270,106 +334,37 @@ def format_guild_events_message(payload: Dict[str, Any], today: date) -> str:
     else:
         for ev in birthdays:
             name = str(ev.get("name", "")).strip()
-
-            categories = ev.get("category") or ev.get("categories") or []
-            if isinstance(categories, str):
-                categories = [categories]
-
-            countries = ev.get("countries") or []
-            if isinstance(countries, str):
-                countries = [countries]
-
-            # IMPORTANT: do NOT deduplicate emojis.
-            cat_emojis = []
-            for c in categories:
-                e = _emoji_for_category(c)
-                if e:
-                    cat_emojis.append(e)
-
-            country_tokens = []
-            country_emojis = []
-            for c in countries:
-                t = _norm_token(c)
-                if not t:
-                    continue
-                country_tokens.append(t)
-                e = _emoji_for_country(t)
-                if e:
-                    country_emojis.append(e)
-
-            prefix = "".join(cat_emojis + country_emojis).strip()
-            if prefix:
-                lines.append(f"{prefix} {name}")
-            else:
-                lines.append(f"• {name}")
-
-            if "murloc" in country_tokens:
-                lines.append(f"{_emoji_for_country('murloc')} Mrgl Mrgl!")
-            elif country_tokens:
-                # keep the country line for non-murloc (now supports multiple countries)
-                lines.append(f"{''.join(country_emojis)} {', '.join(country_tokens)}".strip())
-
-    # Trim trailing blanks
-    while lines and lines[-1] == "":
-        lines.pop()
-
-    return "\n".join(lines)
-
-
-def format_birthday_message(payload: dict, today: date) -> str:
-    """Formats *today's* birthdays from birthday_service.get_today_birthday_payload()."""
-    events = payload.get("events") or []
-    today_md = today.strftime("%m-%d")
-
-    todays_birthdays = [
-        ev for ev in events
-        if (ev.get("date") or "").strip() == today_md
-    ]
-
-    header_emoji = _emoji_for_category("birthday") or "🎂"
-    lines: List[str] = [f"{header_emoji} Birthdays — {today.strftime('%d %b')}", ""]
-
-    if not todays_birthdays:
-        lines.append("No birthdays today.")
-        return "\n".join(lines)
-
-    for ev in todays_birthdays:
-        name = (ev.get("name") or "Unknown").strip()
-
-        categories = ev.get("category") or ev.get("categories") or []
-        if isinstance(categories, str):
-            categories = [categories]
-
-        countries = ev.get("countries") or []
-        if isinstance(countries, str):
-            countries = [countries]
-
-        # IMPORTANT: do NOT deduplicate emojis.
-        cat_emojis: List[str] = []
-        for c in categories:
-            e = _emoji_for_category(c)
-            if e:
-                cat_emojis.append(e)
-
-        country_tokens: List[str] = []
-        country_emojis: List[str] = []
-        for c in countries:
-            t = _norm_token(c)
-            if not t:
+            if not name:
                 continue
-            country_tokens.append(t)
-            e = _emoji_for_country(t)
-            if e:
-                country_emojis.append(e)
 
-        prefix = "".join(cat_emojis + country_emojis).strip()
-        if prefix:
-            lines.append(f"{prefix} {name}")
-        else:
-            lines.append(f"• {name}")
+            # Birthday JSON can contain either singular or plural fields
+            categories = _as_list(ev.get("categories", ev.get("category", [])))
+            countries = _as_list(ev.get("countries", ev.get("country", [])))
 
-        if "murloc" in country_tokens:
-            lines.append(f"{_emoji_for_country('murloc')} Mrgl Mrgl!")
+            # Use *all* provided categories/countries (no de-dup)
+            cat_emojis = _emoji_for_categories_all(categories) or "🥳"
+            country_emojis = _emoji_for_countries_all(countries)
+
+            # Optional birthday phrase/message (preferred)
+            message = (
+                str(
+                    ev.get("message")
+                    or ev.get("text")
+                    or ev.get("phrase")
+                    or ev.get("msg")
+                    or ""
+                )
+                .strip()
+            )
+
+            lines.append(f"{cat_emojis} {name}".strip())
+
+            # Second line: country emojis + message (or country keys as fallback)
+            if message:
+                lines.append(f"{country_emojis} {message}".strip())
+            else:
+                country_keys = " ".join([_norm_token(c) for c in countries if _norm_token(c)])
+                lines.append(f"{country_emojis} {country_keys}".strip())
 
     # Trim trailing blanks
     while lines and lines[-1] == "":

@@ -334,7 +334,7 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
             if prog:
                 lines.append(f"↳ challenge period {range_emoji} {_format_range(prog.start, prog.end)}")
                 lines.append(
-                    f"↳ Currently day {prog.day_index}; {prog.remaining_days} {_days_word(prog.remaining_days)} remaining "
+                    f"↳ Currently day {prog.day_index} out of {prog.remaining_days} {_days_word(prog.remaining_days)} remaining "
                     f"(day {prog.day_index} of {prog.total_days})"
                 )
             lines.append("")
@@ -363,10 +363,10 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
             prog = _range_progress(str(ev.get("date", "")), today)
             if prog:
                 lines.append(
-                    f"↳ @PEDRILLA role period {range_emoji} {_format_range(prog.start, prog.end)}"
+                    f"↳ period {range_emoji} {_format_range(prog.start, prog.end)}"
                 )
                 lines.append(
-                    f"↳ remaining as @PEDRILLA: {prog.remaining_days} {_days_word(prog.remaining_days)} "
+                    f"↳  {prog.remaining_days} {_days_word(prog.remaining_days)} "
                     f"(day {prog.day_index} of {prog.total_days})"
                 )
             lines.append("")

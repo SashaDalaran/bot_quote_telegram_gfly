@@ -79,3 +79,14 @@ def parse_chat_ids_from_env(env_key: str) -> List[int]:
         logger.warning("No valid chat IDs found in %s; skipping send.", env_key)
 
     return ids
+
+
+def parse_chat_ids(env_key: str) -> List[int]:
+    """
+    Backward-compatible alias.
+
+    Older modules import `parse_chat_ids(...)`.
+    The canonical function is now `parse_chat_ids_from_env(...)`,
+    but we keep this wrapper to avoid breaking imports.
+    """
+    return parse_chat_ids_from_env(env_key)

@@ -183,7 +183,7 @@ def _split_owner_desc(name: str) -> Tuple[str, str]:
 # ------------------------------
 
 
-def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
+def format_guild_events_message(payload: Dict[str, Any], today: date) -> str:
     """Render a single message for the 'Guild events' channel."""
 
     title = payload.get("title", "Guild events")
@@ -270,18 +270,106 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     else:
         for ev in birthdays:
             name = str(ev.get("name", "")).strip()
-            categories = ev.get("category", []) or []
-            countries = ev.get("countries", []) or []
 
-            cat_emoji = _emoji_for_category(categories)
-            flag_emoji = _emoji_for_country(countries)
-            country_key = _norm_token(_first_token(countries))
+            categories = ev.get("category") or ev.get("categories") or []
+            if isinstance(categories, str):
+                categories = [categories]
 
-            lines.append(f"{cat_emoji} {name}".strip())
-            if country_key == "murloc":
-                lines.append(f"{flag_emoji} Mrgl Mrgl!")
+            countries = ev.get("countries") or []
+            if isinstance(countries, str):
+                countries = [countries]
+
+            # IMPORTANT: do NOT deduplicate emojis.
+            cat_emojis = []
+            for c in categories:
+                e = _emoji_for_category(c)
+                if e:
+                    cat_emojis.append(e)
+
+            country_tokens = []
+            country_emojis = []
+            for c in countries:
+                t = _norm_token(c)
+                if not t:
+                    continue
+                country_tokens.append(t)
+                e = _emoji_for_country(t)
+                if e:
+                    country_emojis.append(e)
+
+            prefix = "".join(cat_emojis + country_emojis).strip()
+            if prefix:
+                lines.append(f"{prefix} {name}")
             else:
-                lines.append(f"{flag_emoji} {country_key}".strip())
+                lines.append(f"• {name}")
+
+            if "murloc" in country_tokens:
+                lines.append(f"{_emoji_for_country('murloc')} Mrgl Mrgl!")
+            elif country_tokens:
+                # keep the country line for non-murloc (now supports multiple countries)
+                lines.append(f"{''.join(country_emojis)} {', '.join(country_tokens)}".strip())
+
+    # Trim trailing blanks
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return "\n".join(lines)
+
+
+def format_birthday_message(payload: dict, today: date) -> str:
+    """Formats *today's* birthdays from birthday_service.get_today_birthday_payload()."""
+    events = payload.get("events") or []
+    today_md = today.strftime("%m-%d")
+
+    todays_birthdays = [
+        ev for ev in events
+        if (ev.get("date") or "").strip() == today_md
+    ]
+
+    header_emoji = _emoji_for_category("birthday") or "🎂"
+    lines: List[str] = [f"{header_emoji} Birthdays — {today.strftime('%d %b')}", ""]
+
+    if not todays_birthdays:
+        lines.append("No birthdays today.")
+        return "\n".join(lines)
+
+    for ev in todays_birthdays:
+        name = (ev.get("name") or "Unknown").strip()
+
+        categories = ev.get("category") or ev.get("categories") or []
+        if isinstance(categories, str):
+            categories = [categories]
+
+        countries = ev.get("countries") or []
+        if isinstance(countries, str):
+            countries = [countries]
+
+        # IMPORTANT: do NOT deduplicate emojis.
+        cat_emojis: List[str] = []
+        for c in categories:
+            e = _emoji_for_category(c)
+            if e:
+                cat_emojis.append(e)
+
+        country_tokens: List[str] = []
+        country_emojis: List[str] = []
+        for c in countries:
+            t = _norm_token(c)
+            if not t:
+                continue
+            country_tokens.append(t)
+            e = _emoji_for_country(t)
+            if e:
+                country_emojis.append(e)
+
+        prefix = "".join(cat_emojis + country_emojis).strip()
+        if prefix:
+            lines.append(f"{prefix} {name}")
+        else:
+            lines.append(f"• {name}")
+
+        if "murloc" in country_tokens:
+            lines.append(f"{_emoji_for_country('murloc')} Mrgl Mrgl!")
 
     # Trim trailing blanks
     while lines and lines[-1] == "":

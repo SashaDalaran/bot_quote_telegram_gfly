@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from typing import Dict, List
 
 from telegram.ext import Application
@@ -25,16 +25,18 @@ async def send_birthday_daily(app: Application) -> None:
 
     # In-memory de-duplication per channel per UTC day.
     last_sent: Dict[int, str] = app.bot_data.setdefault("birthday_last_sent", {})
-    today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now_utc = datetime.now(timezone.utc)
+    today = now_utc.date()
+    today_key = now_utc.strftime("%Y-%m-%d")
 
     events = load_birthday_events()
-    payload = get_today_birthday_payload(events=events)
+    payload = get_today_birthday_payload(events=events, today=today)
 
     if not payload:
         logger.info("Birthday daily: nothing to send today")
         return
 
-    text = format_birthday_message(payload)
+    text = format_birthday_message(payload, today)
 
     for chat_id in channels:
         if last_sent.get(chat_id) == today_key:

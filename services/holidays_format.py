@@ -18,18 +18,32 @@
 #
 # ==================================================
 
+import re
 from typing import List, Dict
 
 from services.holidays_flags import COUNTRY_FLAGS, CATEGORY_EMOJIS
 
 def _normalize_key(value: str) -> str:
-    """Normalize mapping keys to match services/holidays_flags.py."""
+    """Normalize tokens to match keys in services/holidays_flags.py.
+
+    We do NOT change holidays_flags.py; instead we normalize both the input token
+    and the mapping keys into a comparable snake_case form.
+    """
     if value is None:
         return ""
-    value = str(value).strip().lower()
+    s = str(value).strip()
     # Fix common Cyrillic lookalikes (e.g. 'Сhallenge' -> 'challenge')
-    value = value.replace("с", "c")
-    return value
+    s = s.replace("С", "C").replace("с", "c")
+    s = s.lower()
+    s = re.sub(r"[’'`]", "", s)
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s
+
+
+# Normalized lookup dicts (built from holidays_flags.py at import time)
+_COUNTRY_FLAGS_NORM = {_normalize_key(k): v for k, v in COUNTRY_FLAGS.items()}
+_CATEGORY_EMOJIS_NORM = {_normalize_key(k): v for k, v in CATEGORY_EMOJIS.items()}
 
 
 # ==================================================
@@ -77,8 +91,13 @@ def format_holidays_message(holidays: List[Holiday]) -> str:
         # a generic global emoji is used.
         #
         if countries:
-            country_key = _normalize_key(countries[0])
-            flag = COUNTRY_FLAGS.get(country_key, "🌍")
+            flags = []
+            for c in countries:
+                key = _normalize_key(c)
+                emoji = _COUNTRY_FLAGS_NORM.get(key)
+                if emoji:
+                    flags.append(emoji)
+            flag = "".join(flags) if flags else "🌍"
         else:
             flag = "🌍"
 
@@ -93,10 +112,11 @@ def format_holidays_message(holidays: List[Holiday]) -> str:
         # Unknown categories fall back to a generic label.
         #
         if categories:
-            category = categories[0]
-            category_key = _normalize_key(category)
-            emoji = CATEGORY_EMOJIS.get(category_key, "🔖")
-            lines.append(f"{emoji} {category}")
+            # show all categories (in order), each with its mapped emoji
+            for category in categories:
+                key = _normalize_key(category)
+                emoji = _CATEGORY_EMOJIS_NORM.get(key, "🔖")
+                lines.append(f"{emoji} {str(category).strip()}")
 
         # Empty line between holidays
         lines.append("")

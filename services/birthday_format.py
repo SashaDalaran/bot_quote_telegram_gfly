@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -27,6 +28,18 @@ from services.birthday_service import _norm_token  # reuse normalization (avoid 
 # - That module may or may not expose UI_EMOJIS depending on the deployed version.
 #   To avoid startup crashes, we only import the stable maps and keep local UI defaults here.
 from services.holidays_flags import CATEGORY_EMOJIS, COUNTRY_FLAGS
+
+# Normalized lookup dicts (built from holidays_flags.py at import time)
+def _norm_key(value: Any) -> str:
+    s = _norm_token(value)
+    s = re.sub(r"[’'`]", "", s)
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s
+
+_COUNTRY_FLAGS_NORM = {_norm_key(k): v for k, v in COUNTRY_FLAGS.items()}
+_CATEGORY_EMOJIS_NORM = {_norm_key(k): v for k, v in CATEGORY_EMOJIS.items()}
+
 
 # Minimal UI emojis used only for section headers/formatting.
 # (Categories & countries must come from holidays_flags.)
@@ -150,13 +163,27 @@ def _first_token(values: List[str]) -> str:
 
 
 def _emoji_for_category(categories: List[str]) -> str:
-    key = _norm_token(_first_token(categories))
-    return CATEGORY_EMOJIS.get(key, "")
+    if not categories:
+        return ""
+    out = []
+    for cat in categories:
+        emoji = _CATEGORY_EMOJIS_NORM.get(_norm_key(cat))
+        if emoji:
+            out.append(emoji)
+    return "".join(out)
+
 
 
 def _emoji_for_country(countries: List[str]) -> str:
-    key = _norm_token(_first_token(countries))
-    return COUNTRY_FLAGS.get(key, "")
+    if not countries:
+        return ""
+    out = []
+    for c in countries:
+        emoji = _COUNTRY_FLAGS_NORM.get(_norm_key(c))
+        if emoji:
+            out.append(emoji)
+    return "".join(out)
+
 
 
 def _as_list(value: Any) -> List[str]:
@@ -255,9 +282,9 @@ def format_birthday_message(payload: Dict[str, Any], today: date) -> str:
     heroes: List[Dict[str, Any]] = payload.get("heroes", [])
     birthdays: List[Dict[str, Any]] = payload.get("birthdays", [])
 
-    cal = UI_EMOJIS.get("guild_events_header", "📅")
-    cake = UI_EMOJIS.get("birthdays_header", "🎂")
-    range_emoji = UI_EMOJIS.get("date_range", "🗓️")
+    cal = "📅"
+    cake = "🎂"
+    range_emoji = "🗓️"
 
     lines: List[str] = []
     lines.append(f"{cal} {title} — {_format_short_date(today)}")

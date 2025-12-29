@@ -13,7 +13,7 @@ from services.channel_ids import parse_chat_ids
 logger = logging.getLogger(__name__)
 
 TZ = timezone(timedelta(hours=3))  # GMT+3 (как holidays/banlu)
-SCHEDULED_AT = time(hour=10, minute=3)  # твои ожидаемые 10:03 (GMT+3)
+SCHEDULED_AT = time(hour=10, minute=2)  # твои ожидаемые 10:03 (GMT+3)
 
 def _parse_channel_ids() -> List[int]:
     return parse_chat_ids("BIRTHDAY_CHANNEL_ID")

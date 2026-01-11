@@ -338,7 +338,7 @@ If you want to support spaced durations later, see [Roadmap](#-roadmap-safe-impr
 - etc.
 
 **Default behavior**
-- If TZ is omitted, the bot assumes **Asia/Tbilisi (UTC+4)** for parsing.
+- If TZ is omitted, the bot assumes **Asia/Dubai (UTC+4)** for parsing.
 - Internally target time is stored/scheduled in **UTC**.
 
 **Examples**
@@ -534,7 +534,7 @@ These are intentional “current behavior” notes that match the code:
 - `/timer` duration parsing uses only the 2nd token:
   - ✅ `/timer 1h30m ...`
   - ❌ `/timer 1h 30m ...` (only `1h` will be parsed)
-- `/timerdate` assumes **Asia/Tbilisi (UTC+4)** if TZ offset is not provided.
+- `/timerdate` assumes **Asia/Dubai (UTC+4)** if TZ offset is not provided.
 
 ---
 
@@ -551,7 +551,7 @@ Safe improvements = minimal risk, no refactor avalanche:
 
 Bigger UX changes (behavior changes; do later only if you want):
 - [ ] Support spaced durations for `/timer` (e.g. `1h 30m`)
-- [ ] Unify timezone policy across daily jobs (UTC vs GMT+3 vs Tbilisi)
+- [ ] Unify timezone policy across daily jobs (UTC vs GMT+3 vs Dubai)
 
 ---
 

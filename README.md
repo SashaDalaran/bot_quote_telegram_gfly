@@ -184,6 +184,8 @@ bot_quote_telegram_gfly/
 ├── data/                        # Content & datasets
 │   ├── holidays/                  # holiday JSON packs
 │   │   └── December.json
+│   │   └── January.json
+|   |   └── February.json
 │   ├── __init__.py             # package marker
 │   ├── birthday.json           # guild events dataset
 │   ├── murloc_endings.txt      # Murloc AI dataset

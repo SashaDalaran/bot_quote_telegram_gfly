@@ -32,11 +32,14 @@ async def send_birthday_daily(app: Application) -> None:
     today_key = now_local.strftime("%Y-%m-%d")
 
     events = load_birthday_events()
-    payload = get_today_birthday_payload(events=events, today=today)
 
-    if not payload:
-        logger.info("Birthday daily: nothing to send today")
-        return
+    # ✅ FIX: если сегодня нет событий — всё равно шлём модуль с заглушками
+    payload = get_today_birthday_payload(events=events, today=today) or {
+        "title": "Guild events",
+        "challenges": [],
+        "heroes": [],
+        "birthdays": [],
+    }
 
     text = format_birthday_message(payload, today)
 

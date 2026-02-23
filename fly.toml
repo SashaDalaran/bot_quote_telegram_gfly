@@ -101,7 +101,5 @@ primary_region = 'ams'
 #
 
 [[vm]]
-  cpu_kind = 'shared'
-  cpus = 1
-  memory = '512mb'
-  memory_mb = 512
+  size = "shared-cpu-1x"
+  memory = "256mb"
